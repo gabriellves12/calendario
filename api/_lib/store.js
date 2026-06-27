@@ -4,8 +4,23 @@
  * Upstash no Marketplace (UPSTASH_REDIS_REST_*). Se nenhuma existir, cai para
  * memória efêmera (bom para testes locais; perde dados ao reiniciar).
  */
-const URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
-const TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+// Descobre a URL e o token do Redis, qualquer que seja o prefixo das variáveis
+// criadas pela Vercel (KV_*, UPSTASH_REDIS_*, STORAGE_*, etc.).
+function resolveRedisEnv() {
+  let url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  let token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url) {
+    const k = Object.keys(process.env).find((k) => /REST_API_URL$/.test(k));
+    if (k) url = process.env[k];
+  }
+  if (!token) {
+    // evita o token "read only" — precisamos de escrita (SET/DEL)
+    const k = Object.keys(process.env).find((k) => /REST_API_TOKEN$/.test(k) && !/READ_ONLY/.test(k));
+    if (k) token = process.env[k];
+  }
+  return { url: url || '', token: token || '' };
+}
+const { url: URL, token: TOKEN } = resolveRedisEnv();
 const HAS_REDIS = !!(URL && TOKEN);
 
 const _mem = new Map();
