@@ -76,8 +76,8 @@ Veja `.env.example`. As principais:
 | `META_REDIRECT_URI` | `https://SEU-DOMINIO.vercel.app/api/instagram/callback` |
 | `GRAPH_API_VERSION` | Versão da Graph API (padrão `v21.0`) |
 | `REDIS_URL` | Injetada pela Vercel ao conectar o Redis (Upstash) |
-| `ANTHROPIC_API_KEY` | Chave da API do Claude para a aba **Agente IA** (cobrança por uso) |
-| `ANTHROPIC_MODEL` | Opcional — modelo do agente (padrão `claude-opus-4-8`) |
+| `ANTHROPIC_API_KEY` | Chave da API do Claude para a aba **Agente IA / Radar** (cobrança por uso) |
+| `ANTHROPIC_MODEL` | Opcional — modelo do agente (padrão `claude-haiku-4-5`, o mais barato) |
 
 ## 🤖 Agente IA (notícias)
 

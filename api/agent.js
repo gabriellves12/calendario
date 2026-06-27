@@ -12,17 +12,24 @@ import { requireAuth } from './_lib/auth.js';
 // Hobby da Vercel permite até 60s; busca na web + raciocínio pode levar alguns segundos.
 export const config = { maxDuration: 60 };
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
-// A busca com filtragem dinâmica exige Opus 4.6+/Sonnet 4.6; modelos antigos usam a básica.
-const WS_ADVANCED = /opus-4-(6|7|8)|sonnet-4-6|fable-5/.test(MODEL);
+// Padrão: Haiku (mais barato). Pode trocar via ANTHROPIC_MODEL.
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
+// Modelos que suportam busca com filtragem dinâmica + raciocínio adaptativo (Opus 4.6+/Sonnet 4.6).
+// Haiku e modelos antigos usam a busca básica e NÃO aceitam thinking/effort.
+const ADVANCED = /opus-4-(6|7|8)|sonnet-4-6|fable-5/.test(MODEL);
 
-const SYSTEM = `Você é o assistente de pesquisa da Nevel MED, uma agência de marketing especializada no nicho de saúde.
-Sua função: buscar na web as notícias e tendências MAIS RECENTES sobre o tema pedido (marketing, saúde, medicina ou o que for solicitado) e entregar um briefing pronto para a equipe de conteúdo.
+const SYSTEM = `Você é o pesquisador do "Nevel MED Radar", o conteúdo de notícias da Nevel MED — agência de marketing especializada no nicho de saúde.
+Sua função: buscar na web as notícias e tendências MAIS RECENTES sobre o tema pedido e entregar um briefing pronto para a equipe de conteúdo.
+
+Linha editorial do Radar (foque nisso):
+- Notícias e tendências do mercado de SAÚDE em geral (clínicas, hospitais, healthtechs, regulação, comportamento do paciente).
+- MARKETING e marketing médico (estratégias, plataformas, mudanças de algoritmo, casos relevantes).
+- Notícias gerais do MERCADO que impactam o setor de saúde.
 
 Regras:
 - Sempre faça buscas na web para trazer informação atual — não responda de memória.
 - Responda em português do Brasil.
-- Formato: uma lista de 5 a 7 itens. Cada item em uma linha começando com "- ", contendo: o fato/notícia em uma frase + (entre parênteses) por que importa para conteúdo de saúde e a data, quando houver.
+- Formato: uma lista de 5 a 7 itens. Cada item em uma linha começando com "- ", contendo: o fato/notícia em uma frase + (entre parênteses) por que importa / ângulo de conteúdo para a Nevel MED e a data, quando houver.
 - Seja conciso e direto. Sem introdução longa nem conclusão.
 - Priorize fontes confiáveis e recentes.`;
 
@@ -41,10 +48,16 @@ export default async function handler(req, res) {
 
   const client = new Anthropic(); // lê ANTHROPIC_API_KEY do ambiente
   const tools = [{
-    type: WS_ADVANCED ? 'web_search_20260209' : 'web_search_20250305',
+    type: ADVANCED ? 'web_search_20260209' : 'web_search_20250305',
     name: 'web_search',
     max_uses: 6,
   }];
+  // thinking/effort só nos modelos que suportam (Haiku rejeitaria com erro 400)
+  const baseParams = { model: MODEL, max_tokens: 4096, system: SYSTEM, tools };
+  if (ADVANCED) {
+    baseParams.thinking = { type: 'adaptive' };
+    baseParams.output_config = { effort: 'low' };
+  }
 
   try {
     let messages = [{ role: 'user', content: query }];
@@ -54,15 +67,7 @@ export default async function handler(req, res) {
     let guard = 0;
 
     while (true) {
-      const resp = await client.messages.create({
-        model: MODEL,
-        max_tokens: 4096,
-        thinking: { type: 'adaptive' },
-        output_config: { effort: 'low' },
-        system: SYSTEM,
-        tools,
-        messages,
-      });
+      const resp = await client.messages.create({ ...baseParams, messages });
 
       for (const block of resp.content) {
         if (block.type === 'text' && block.text) textParts.push(block.text);
