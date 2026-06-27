@@ -66,6 +66,20 @@ function isToday(d){ const t=new Date(); return d.getFullYear()===t.getFullYear(
 function uid(){ return 'p'+Math.random().toString(36).slice(2,9); }
 function postsFor(key){ return (posts[key]||[]).slice().sort((a,b)=>(a.time||'').localeCompare(b.time||'')); }
 
+/* Normaliza o horário digitado para HH:MM (mantém texto livre se não parecer hora) */
+function normalizeTime(v){
+  if(!v) return '';
+  const s = v.trim();
+  const digits = s.replace(/\D/g,'');
+  if(!digits) return s;                 // texto livre (ex.: "manhã")
+  let h, m;
+  if(digits.length<=2){ h=+digits; m=0; }
+  else if(digits.length===3){ h=+digits.slice(0,1); m=+digits.slice(1); }
+  else { h=+digits.slice(0,2); m=+digits.slice(2,4); }
+  if(isNaN(h) || isNaN(m) || h>23 || m>59) return s; // não parece hora → mantém
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
 /* ---------- Perfis do Instagram ---------- */
 const PROF_KEY = 'nevel_profiles_v1';
 const PROFILE_PALETTE = ['#06C4FE','#2D5AD8','#10B981','#F59E0B','#8B5CF6','#EF4444'];
@@ -394,7 +408,7 @@ function collectForm(){
     type: draftType,
     profile: draftProfile,
     content: document.getElementById('f-content').value.trim(),
-    time: document.getElementById('f-time').value,
+    time: normalizeTime(document.getElementById('f-time').value),
     driveUrl: document.getElementById('f-drive').value.trim(),
     caption: document.getElementById('f-caption').value.trim(),
   };
@@ -541,6 +555,7 @@ function bindEvents(){
   document.getElementById('btn-delete').addEventListener('click', deletePost);
   document.getElementById('btn-new-post').addEventListener('click', resetForm);
   document.getElementById('f-caption').addEventListener('input', updateCharCount);
+  document.getElementById('f-time').addEventListener('blur',(e)=>{ e.target.value = normalizeTime(e.target.value); });
 
   // drive preview abre link
   document.getElementById('f-drive').addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ e.preventDefault(); const u=e.target.value.trim(); if(u) window.open(u,'_blank'); } });
