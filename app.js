@@ -36,6 +36,11 @@ const I = {
   instagram:'<rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
   trend:'<path d="m3 17 6-6 4 4 8-8M21 7v6h-6"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  external:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  bookOpen:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
 };
 function icon(name, w=18){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="${w}" height="${w}">${I[name]||''}</svg>`}
 
@@ -78,6 +83,15 @@ function profileById(id){ return profiles.find(p=>p.id===id) || null; }
 function nextProfileColor(){ return PROFILE_PALETTE[profiles.length % PROFILE_PALETTE.length]; }
 function matchesFilter(p){ return activeProfileFilter==='all' || p.profile===activeProfileFilter; }
 
+/* ---------- Referências (links e materiais) ---------- */
+const REF_KEY = 'nevel_refs_v1';
+let references = loadRefs();
+let refSearch = '';
+let editingRefId = null;
+function loadRefs(){ try{ const r = JSON.parse(localStorage.getItem(REF_KEY)); if(Array.isArray(r)) return r; }catch{} return []; }
+function saveRefs(){ localStorage.setItem(REF_KEY, JSON.stringify(references)); }
+function refHost(url){ try{ return new URL(url).hostname.replace(/^www\./,''); }catch{ return ''; } }
+
 /* ---------- Backend (Vercel /api) ---------- */
 // Quando aberto localmente (file://), não há backend → o app cai no modo demo.
 // Em produção (https), usa as rotas reais.
@@ -93,8 +107,10 @@ async function api(path, { method='GET', body } = {}){
 
 /* ═══════════════════════  NAVEGAÇÃO ENTRE TELAS  ═══════════════════════ */
 function switchView(name){
+  if(!name) return;
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+name));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===name));
+  if(name==='references') renderReferences();
 }
 
 /* ═══════════════════════  CALENDÁRIO  ═══════════════════════ */
@@ -251,6 +267,93 @@ function deleteProfile(id){
   if(activeProfileFilter===id) activeProfileFilter='all';
   if(draftProfile===id) draftProfile = profiles[0]?profiles[0].id:null;
   saveProfiles(); renderProfManager(); afterProfilesChanged();
+}
+
+/* ═══════════════════════  REFERÊNCIAS  ═══════════════════════ */
+function renderReferences(){
+  const wrap = document.getElementById('ref-grid');
+  if(!wrap) return;
+  const q = refSearch.trim().toLowerCase();
+  let list = references.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(q) list = list.filter(r=>[r.title,r.url,r.note,r.category].some(v=>(v||'').toLowerCase().includes(q)));
+  document.getElementById('ref-count').textContent = references.length ? `${references.length} ${references.length>1?'referências':'referência'}` : '';
+
+  if(!list.length){
+    wrap.innerHTML = `<div class="ref-empty">${icon('link',26)}<p>${references.length ? 'Nenhuma referência encontrada para a busca.' : 'Nenhuma referência ainda. Clique em “Nova referência” para guardar links e materiais.'}</p></div>`;
+    return;
+  }
+  wrap.innerHTML = list.map(r=>{
+    const host = refHost(r.url);
+    const fav = host
+      ? `<img src="https://www.google.com/s/favicon?sz=64&domain=${host}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="ref-fav-fb" style="display:none">${icon('link',18)}</span>`
+      : `<span class="ref-fav-fb" style="display:flex">${icon('link',18)}</span>`;
+    return `<div class="ref-card" data-ref="${r.id}" data-url="${escapeHtml(r.url||'')}">
+      <div class="ref-top">
+        <div class="ref-fav">${fav}</div>
+        <div class="ref-actions">
+          <button class="icon-btn" data-edit-ref="${r.id}" title="Editar">${icon('edit',15)}</button>
+        </div>
+      </div>
+      <div class="ref-title">${escapeHtml(r.title||host||'Sem título')}</div>
+      <div class="ref-domain">${icon('external',12)} ${escapeHtml(host||r.url||'—')}</div>
+      ${r.note?`<p class="ref-note">${escapeHtml(r.note)}</p>`:''}
+      ${r.category?`<span class="ref-cat">${escapeHtml(r.category)}</span>`:''}
+    </div>`;
+  }).join('');
+}
+
+function openRefEditor(id){
+  editingRefId = id || null;
+  const r = id ? references.find(x=>x.id===id) : null;
+  document.getElementById('ref-title').value = r?.title || '';
+  document.getElementById('ref-url').value = r?.url || '';
+  document.getElementById('ref-category').value = r?.category || '';
+  document.getElementById('ref-note').value = r?.note || '';
+  document.getElementById('ref-modal-title').textContent = r ? 'Editar referência' : 'Nova referência';
+  document.getElementById('ref-eyebrow').textContent = r ? 'Editar' : 'Nova';
+  document.getElementById('ref-delete').style.display = r ? 'inline-flex' : 'none';
+  document.getElementById('ref-overlay').classList.add('open');
+  document.getElementById('ref-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('ref-title').focus(),250);
+}
+function closeRefEditor(){
+  document.getElementById('ref-overlay').classList.remove('open');
+  document.getElementById('ref-modal').classList.remove('open');
+  editingRefId = null;
+}
+function saveRefForm(){
+  const title = document.getElementById('ref-title').value.trim();
+  const url = document.getElementById('ref-url').value.trim();
+  const category = document.getElementById('ref-category').value.trim();
+  const note = document.getElementById('ref-note').value.trim();
+  if(!title && !url){ toast('Informe um título ou um link', false); return; }
+  if(editingRefId){
+    const r = references.find(x=>x.id===editingRefId);
+    if(r) Object.assign(r, { title, url, category, note });
+    toast('Referência atualizada');
+  } else {
+    references.push({ id:'r'+uid(), title, url, category, note, createdAt:Date.now() });
+    toast('Referência salva');
+  }
+  saveRefs(); renderReferences(); closeRefEditor();
+}
+function deleteRef(){
+  if(!editingRefId) return;
+  references = references.filter(r=>r.id!==editingRefId);
+  saveRefs(); renderReferences(); closeRefEditor(); toast('Referência removida');
+}
+
+/* Exemplos iniciais (uma única vez) */
+const REF_SEED_KEY = 'nevel_refs_seeded_v1';
+function seedRefs(){
+  if(localStorage.getItem(REF_SEED_KEY)==='1') return;
+  localStorage.setItem(REF_SEED_KEY,'1');
+  if(references.length) return;
+  references = [
+    { id:'r'+uid(), title:'Pasta de materiais (Drive)', url:'https://drive.google.com/', category:'Materiais', note:'Artes, vídeos e arquivos brutos da equipe.', createdAt:Date.now() },
+    { id:'r'+uid(), title:'Referências de conteúdo', url:'https://www.instagram.com/', category:'Inspiração', note:'Perfis e posts que servem de referência.', createdAt:Date.now()-1000 },
+  ];
+  saveRefs();
 }
 
 function resetForm(){
@@ -419,6 +522,18 @@ function bindEvents(){
     const inp=e.target.closest('[data-name]'); if(inp) renameProfile(inp.dataset.name, inp.value);
   });
 
+  // referências
+  document.getElementById('new-ref-btn').addEventListener('click',()=>openRefEditor());
+  document.getElementById('ref-search').addEventListener('input',(e)=>{ refSearch=e.target.value; renderReferences(); });
+  document.getElementById('ref-grid').addEventListener('click',(e)=>{
+    const ed=e.target.closest('[data-edit-ref]'); if(ed){ openRefEditor(ed.dataset.editRef); return; }
+    const card=e.target.closest('.ref-card'); if(card){ const u=card.dataset.url; if(u) window.open(u,'_blank','noopener'); }
+  });
+  document.getElementById('ref-overlay').addEventListener('click', closeRefEditor);
+  document.getElementById('ref-close').addEventListener('click', closeRefEditor);
+  document.getElementById('ref-save').addEventListener('click', saveRefForm);
+  document.getElementById('ref-delete').addEventListener('click', deleteRef);
+
   // ações do form
   document.getElementById('btn-save').addEventListener('click',()=>saveForm());
   document.getElementById('btn-delete').addEventListener('click', deletePost);
@@ -492,6 +607,7 @@ async function initAuth(){
 
 /* ---------- Init ---------- */
 seedIfEmpty();
+seedRefs();
 bindEvents();
 renderProfileFilter();
 renderCalendar();
