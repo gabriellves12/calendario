@@ -1,0 +1,17 @@
+{
+  "name": "nevel-med-conteudo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Painel de calendário de conteúdo e métricas da Nevel MED — frontend estático + backend serverless (Vercel) com integração Instagram.",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@vercel/kv": "^1.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,7 @@
+/** POST /api/logout — limpa o cookie de sessão. */
+import { clearSessionCookie } from './_lib/auth.js';
+
+export default async function handler(req, res) {
+  clearSessionCookie(res);
+  return res.status(200).json({ ok: true });
+}
