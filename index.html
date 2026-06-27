@@ -159,6 +159,15 @@
           </div>
         </div>
 
+        <div class="profile-bar">
+          <span class="pb-label">Perfil:</span>
+          <div class="prof-filter" id="profile-filter"></div>
+          <button class="btn btn-ghost btn-manage" id="manage-profiles" title="Criar, renomear ou excluir perfis">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Gerenciar perfis
+          </button>
+        </div>
+
         <div class="cal-grid">
           <div class="cal-weekdays">
             <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
@@ -196,6 +205,11 @@
         <button class="btn btn-ghost" id="btn-new-post" style="padding:4px 8px;font-size:12px">+ Limpar / novo</button>
       </div>
       <div class="form">
+        <div class="field">
+          <label>Perfil do Instagram</label>
+          <div class="segmented" id="seg-profile"></div>
+        </div>
+
         <div class="field">
           <label>Tipo de conteúdo</label>
           <div class="segmented" id="seg-type"></div>
@@ -239,6 +253,30 @@
         Salvar
       </button>
     </div>
+  </div>
+</aside>
+
+<!-- Gerenciador de perfis -->
+<div class="overlay" id="prof-overlay"></div>
+<aside class="modal-sm" id="prof-modal">
+  <div class="drawer-head">
+    <div>
+      <div class="eyebrow">Perfis</div>
+      <h2>Perfis do Instagram</h2>
+    </div>
+    <button class="icon-btn" id="prof-close" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="modal-sm-body">
+    <p class="hint" style="margin-bottom:4px">Um perfil para cada conta. Clique na bolinha de cor para trocá-la.</p>
+    <div class="prof-list" id="prof-list"></div>
+    <button class="btn btn-outline" id="add-profile" style="width:100%;justify-content:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+      Adicionar perfil
+    </button>
+  </div>
+  <div class="drawer-foot">
+    <div></div>
+    <div class="right"><button class="btn btn-primary" id="prof-done">Concluir</button></div>
   </div>
 </aside>
 

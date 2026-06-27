@@ -59,6 +59,25 @@ function isToday(d){ const t=new Date(); return d.getFullYear()===t.getFullYear(
 function uid(){ return 'p'+Math.random().toString(36).slice(2,9); }
 function postsFor(key){ return (posts[key]||[]).slice().sort((a,b)=>(a.time||'').localeCompare(b.time||'')); }
 
+/* ---------- Perfis do Instagram ---------- */
+const PROF_KEY = 'nevel_profiles_v1';
+const PROFILE_PALETTE = ['#06C4FE','#2D5AD8','#10B981','#F59E0B','#8B5CF6','#EF4444'];
+let profiles = loadProfiles();
+let activeProfileFilter = 'all';
+let draftProfile = profiles[0] ? profiles[0].id : null;
+
+function loadProfiles(){
+  try{ const p = JSON.parse(localStorage.getItem(PROF_KEY)); if(Array.isArray(p) && p.length) return p; }catch{}
+  return [
+    { id:'pf1', name:'@nevel.med', color:PROFILE_PALETTE[0] },
+    { id:'pf2', name:'@perfil 2',  color:PROFILE_PALETTE[1] },
+  ];
+}
+function saveProfiles(){ localStorage.setItem(PROF_KEY, JSON.stringify(profiles)); }
+function profileById(id){ return profiles.find(p=>p.id===id) || null; }
+function nextProfileColor(){ return PROFILE_PALETTE[profiles.length % PROFILE_PALETTE.length]; }
+function matchesFilter(p){ return activeProfileFilter==='all' || p.profile===activeProfileFilter; }
+
 /* ---------- Backend (Vercel /api) ---------- */
 // Quando aberto localmente (file://), não há backend → o app cai no modo demo.
 // Em produção (https), usa as rotas reais.
@@ -99,11 +118,13 @@ function renderCalendar(){
   const grid = document.getElementById('cal-days');
   grid.innerHTML = cells.map(c=>{
     const key = keyOf(c.date);
-    const dayPosts = postsFor(key);
+    const dayPosts = postsFor(key).filter(matchesFilter);
     const evtHtml = dayPosts.slice(0,3).map(p=>{
       const t = TYPES.find(t=>t.id===p.type)?.label || p.type;
       const title = p.content ? p.content.split('\n')[0] : t;
-      return `<div class="evt t-${p.type}"><span class="evt-time">${p.time||'--:--'}</span><span class="evt-title">${escapeHtml(title)}</span></div>`;
+      const pr = profileById(p.profile);
+      const profDot = `<span class="evt-prof" style="background:${pr?pr.color:'var(--color-neutral-400)'}"></span>`;
+      return `<div class="evt t-${p.type}">${profDot}<span class="evt-time">${p.time||'--:--'}</span><span class="evt-title">${escapeHtml(title)}</span></div>`;
     }).join('');
     const more = dayPosts.length>3 ? `<div class="evt-more">+${dayPosts.length-3} mais</div>` : '';
     return `<div class="cal-cell ${c.outside?'outside':''} ${isToday(c.date)?'today':''} ${dayPosts.length?'has-events':''}" data-key="${key}" data-outside="${c.outside}">
@@ -144,12 +165,15 @@ function renderDayList(){
   list.innerHTML = dayPosts.map(p=>{
     const t = TYPES.find(t=>t.id===p.type);
     const title = p.content ? p.content.split('\n')[0] : (t?.label||p.type);
+    const pr = profileById(p.profile);
+    const profPill = pr ? `<span class="type-pill prof-tag"><span class="dot" style="background:${pr.color}"></span>${escapeHtml(pr.name)}</span>` : '';
     return `<div class="post-card ${editingId===p.id?'editing':''}" data-edit="${p.id}">
       <div class="post-card-top">
         <span class="post-card-time">${icon('clock',14)} ${p.time||'--:--'}</span>
       </div>
       <div class="post-card-title">${escapeHtml(title)}</div>
       <div class="post-card-meta">
+        ${profPill}
         <span class="type-pill type-${p.type}"><span class="dot"></span>${t?.label||p.type}</span>
         ${p.driveUrl?`<span class="type-pill type-imagem"><span class="dot"></span>Drive</span>`:''}
       </div>
@@ -162,10 +186,76 @@ function renderSegmented(){
     `<button type="button" class="seg ${draftType===t.id?'active':''}" data-type="${t.id}">
       <span class="dot" style="background:var(--type-${t.id})"></span>${t.label}</button>`
   ).join('');
+  renderProfileSeg();
+}
+
+/* Seletor de perfil no formulário */
+function renderProfileSeg(){
+  const el = document.getElementById('seg-profile');
+  if(!el) return;
+  if(!profiles.length){ el.innerHTML = `<span class="hint">Nenhum perfil — clique em "Gerenciar perfis".</span>`; return; }
+  el.innerHTML = profiles.map(pr=>
+    `<button type="button" class="seg ${draftProfile===pr.id?'active':''}" data-prof="${pr.id}">
+      <span class="dot" style="background:${pr.color}"></span>${escapeHtml(pr.name)}</button>`
+  ).join('');
+}
+
+/* Filtro de perfil no topo do calendário */
+function renderProfileFilter(){
+  const el = document.getElementById('profile-filter');
+  if(!el) return;
+  const pill = (id,label,color)=>`<button class="prof-pill ${activeProfileFilter===id?'active':''}" data-filter="${id}">${color?`<span class="dot" style="background:${color}"></span>`:''}${escapeHtml(label)}</button>`;
+  el.innerHTML = pill('all','Todos','') + profiles.map(pr=>pill(pr.id,pr.name,pr.color)).join('');
+}
+
+/* Gerenciador de perfis (modal) */
+function openProfManager(){
+  renderProfManager();
+  document.getElementById('prof-overlay').classList.add('open');
+  document.getElementById('prof-modal').classList.add('open');
+}
+function closeProfManager(){
+  document.getElementById('prof-overlay').classList.remove('open');
+  document.getElementById('prof-modal').classList.remove('open');
+}
+function renderProfManager(){
+  const list = document.getElementById('prof-list');
+  list.innerHTML = profiles.map(pr=>
+    `<div class="prof-row" data-id="${pr.id}">
+      <button class="prof-color" data-color="${pr.id}" style="background:${pr.color}" title="Trocar cor"></button>
+      <input class="prof-name-input" data-name="${pr.id}" value="${escapeHtml(pr.name)}" placeholder="@perfil" maxlength="30">
+      <button class="btn-icon-del" data-del="${pr.id}" title="Remover perfil">${icon('trash',16)}</button>
+    </div>`
+  ).join('') || `<div class="day-list-empty">Nenhum perfil ainda. Adicione o primeiro.</div>`;
+}
+function afterProfilesChanged(){
+  renderProfileFilter(); renderCalendar(); renderProfileSeg();
+}
+function addProfile(){
+  profiles.push({ id:'pf'+uid(), name:'@novo perfil', color:nextProfileColor() });
+  saveProfiles(); renderProfManager(); afterProfilesChanged();
+}
+function cycleProfileColor(id){
+  const pr = profileById(id); if(!pr) return;
+  const i = PROFILE_PALETTE.indexOf(pr.color);
+  pr.color = PROFILE_PALETTE[(i+1)%PROFILE_PALETTE.length];
+  saveProfiles(); renderProfManager(); afterProfilesChanged();
+}
+function renameProfile(id, name){
+  const pr = profileById(id); if(!pr) return;
+  pr.name = name.trim() || pr.name;
+  saveProfiles(); afterProfilesChanged();
+}
+function deleteProfile(id){
+  profiles = profiles.filter(p=>p.id!==id);
+  if(activeProfileFilter===id) activeProfileFilter='all';
+  if(draftProfile===id) draftProfile = profiles[0]?profiles[0].id:null;
+  saveProfiles(); renderProfManager(); afterProfilesChanged();
 }
 
 function resetForm(){
   editingId=null; draftType='reels';
+  draftProfile = profiles[0] ? profiles[0].id : null;
   document.getElementById('f-content').value='';
   document.getElementById('f-time').value='';
   document.getElementById('f-drive').value='';
@@ -181,6 +271,7 @@ function loadIntoForm(id){
   const p = (posts[activeDayKey]||[]).find(x=>x.id===id);
   if(!p) return;
   editingId=id; draftType=p.type;
+  draftProfile = p.profile || (profiles[0]?profiles[0].id:null);
   document.getElementById('f-content').value=p.content||'';
   document.getElementById('f-time').value=p.time||'';
   document.getElementById('f-drive').value=p.driveUrl||'';
@@ -196,6 +287,7 @@ function loadIntoForm(id){
 function collectForm(){
   return {
     type: draftType,
+    profile: draftProfile,
     content: document.getElementById('f-content').value.trim(),
     time: document.getElementById('f-time').value,
     driveUrl: document.getElementById('f-drive').value.trim(),
@@ -256,11 +348,11 @@ function seedIfEmpty(){
   const mk=(day)=>keyOf(new Date(y,m,day));
   const base=Math.min(t.getDate(), 24);
   posts[mk(base)] = [
-    {id:uid(),type:'reels',time:'09:00',content:'5 sinais de burnout médico',caption:'Você reconhece esses sinais? Salve este post. 🩺\n\n#saude #medicina',driveUrl:'https://drive.google.com/exemplo',scheduled:true},
-    {id:uid(),type:'story',time:'12:30',content:'Enquete: maior dúvida na consulta',caption:'',driveUrl:'',scheduled:false},
+    {id:uid(),type:'reels',profile:'pf1',time:'09:00',content:'5 sinais de burnout médico',caption:'Você reconhece esses sinais? Salve este post. 🩺\n\n#saude #medicina',driveUrl:'https://drive.google.com/exemplo'},
+    {id:uid(),type:'story',profile:'pf2',time:'12:30',content:'Enquete: maior dúvida na consulta',caption:'',driveUrl:''},
   ];
   posts[mk(Math.min(base+2,28))] = [
-    {id:uid(),type:'carrossel',time:'18:00',content:'Como estruturar um plano de saúde',caption:'Arraste para o lado →',driveUrl:'',scheduled:false},
+    {id:uid(),type:'carrossel',profile:'pf1',time:'18:00',content:'Como estruturar um plano de saúde',caption:'Arraste para o lado →',driveUrl:''},
   ];
   save();
 }
@@ -299,6 +391,32 @@ function bindEvents(){
   document.getElementById('seg-type').addEventListener('click',(e)=>{
     const b=e.target.closest('[data-type]'); if(!b) return;
     draftType=b.dataset.type; renderSegmented();
+  });
+
+  // segmented perfil (no formulário)
+  document.getElementById('seg-profile').addEventListener('click',(e)=>{
+    const b=e.target.closest('[data-prof]'); if(!b) return;
+    draftProfile=b.dataset.prof; renderProfileSeg();
+  });
+
+  // filtro de perfil (topo do calendário)
+  document.getElementById('profile-filter').addEventListener('click',(e)=>{
+    const b=e.target.closest('[data-filter]'); if(!b) return;
+    activeProfileFilter=b.dataset.filter; renderProfileFilter(); renderCalendar();
+  });
+
+  // gerenciador de perfis
+  document.getElementById('manage-profiles').addEventListener('click', openProfManager);
+  document.getElementById('prof-overlay').addEventListener('click', closeProfManager);
+  document.getElementById('prof-close').addEventListener('click', closeProfManager);
+  document.getElementById('prof-done').addEventListener('click', closeProfManager);
+  document.getElementById('add-profile').addEventListener('click', addProfile);
+  document.getElementById('prof-list').addEventListener('click',(e)=>{
+    const col=e.target.closest('[data-color]'); if(col){ cycleProfileColor(col.dataset.color); return; }
+    const del=e.target.closest('[data-del]'); if(del){ deleteProfile(del.dataset.del); return; }
+  });
+  document.getElementById('prof-list').addEventListener('input',(e)=>{
+    const inp=e.target.closest('[data-name]'); if(inp) renameProfile(inp.dataset.name, inp.value);
   });
 
   // ações do form
@@ -375,5 +493,6 @@ async function initAuth(){
 /* ---------- Init ---------- */
 seedIfEmpty();
 bindEvents();
+renderProfileFilter();
 renderCalendar();
 initAuth();

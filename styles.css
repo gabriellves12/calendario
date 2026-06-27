@@ -364,6 +364,56 @@ table.posts tbody tr:hover{background:var(--color-neutral-50)}
 .demo-banner{display:flex;align-items:center;gap:10px;font-size:var(--text-sm);color:var(--color-neutral-700);background:var(--color-neutral-50);border:1px solid var(--color-neutral-100);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:24px}
 .demo-banner svg{width:18px;height:18px;color:var(--color-warning);flex-shrink:0}
 
+/* ═══════════════════════  PERFIS DO INSTAGRAM  ═══════════════════════ */
+/* Barra de filtro por perfil */
+.profile-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.pb-label{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.1em;color:var(--color-neutral-400);font-weight:500}
+.prof-filter{display:flex;gap:7px;flex-wrap:wrap}
+.prof-pill{
+  display:inline-flex;align-items:center;gap:7px;font-size:var(--text-sm);cursor:pointer;
+  padding:6px 13px;border-radius:var(--radius-full);border:1px solid var(--color-neutral-100);
+  background:var(--color-neutral-0);color:var(--color-neutral-500);
+  transition:border-color var(--transition-base),background var(--transition-base),color var(--transition-base);
+}
+.prof-pill .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.prof-pill:hover{border-color:var(--color-neutral-200);color:var(--color-neutral-900)}
+.prof-pill.active{border-color:var(--color-primary);background:var(--color-neutral-50);color:var(--color-neutral-900)}
+.btn-manage{margin-left:auto;font-size:var(--text-sm);color:var(--color-neutral-500);gap:7px}
+.btn-manage:hover{color:var(--color-neutral-900)}
+
+/* Bolinha de perfil dentro do evento do calendário */
+.evt-prof{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* Etiqueta de perfil na lista do dia */
+.prof-tag{background:var(--color-neutral-100);color:var(--color-neutral-700)}
+
+/* Modal pequeno (gerenciador de perfis) */
+.modal-sm{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-48%) scale(.97);
+  width:440px;max-width:92vw;max-height:88vh;background:var(--color-neutral-0);
+  border:1px solid var(--color-neutral-100);border-radius:var(--radius-lg);overflow:hidden;
+  opacity:0;visibility:hidden;display:flex;flex-direction:column;z-index:55;
+  transition:transform 240ms cubic-bezier(.4,0,.2,1),opacity 200ms ease,visibility 200ms ease;
+}
+.modal-sm.open{transform:translate(-50%,-50%) scale(1);opacity:1;visibility:visible}
+.modal-sm-body{padding:22px 26px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.prof-list{display:flex;flex-direction:column;gap:10px}
+.prof-row{display:flex;align-items:center;gap:10px}
+.prof-color{width:26px;height:26px;border-radius:var(--radius-full);border:2px solid var(--color-neutral-0);box-shadow:0 0 0 1px var(--color-neutral-200);cursor:pointer;flex-shrink:0;transition:transform var(--transition-base)}
+.prof-color:hover{transform:scale(1.12)}
+.prof-name-input{
+  flex:1;font-size:var(--text-sm);color:var(--color-neutral-900);background:var(--color-neutral-0);
+  border:1px solid var(--color-neutral-100);border-radius:var(--radius-sm);padding:9px 12px;
+  transition:border-color var(--transition-base);
+}
+.prof-name-input:focus{outline:none;border-color:var(--color-primary)}
+.btn-icon-del{
+  display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;
+  border-radius:var(--radius-sm);border:1px solid transparent;background:transparent;color:var(--color-neutral-400);cursor:pointer;
+  transition:background var(--transition-base),color var(--transition-base);
+}
+.btn-icon-del:hover{background:#FDECEC;color:var(--color-error)}
+
 /* Animações de entrada */
 .fade-up{animation:fadeUp var(--transition-enter) both}
 .fade-up.d1{animation-delay:60ms}.fade-up.d2{animation-delay:120ms}.fade-up.d3{animation-delay:180ms}.fade-up.d4{animation-delay:240ms}
