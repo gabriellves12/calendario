@@ -10,6 +10,7 @@ const TYPES = [
   { id:'story',     label:'Story' },
   { id:'imagem',    label:'Imagem' },
   { id:'live',      label:'Live' },
+  { id:'youtube',   label:'YouTube' },
 ];
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const WEEKDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
