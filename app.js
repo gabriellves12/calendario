@@ -372,6 +372,51 @@ function seedRefs(){
   saveRefs();
 }
 
+/* ═══════════════════════  AGENTE IA  ═══════════════════════ */
+function agentMarkup(text, sources){
+  const lines = (text||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  let html = '', inList = false;
+  for(const l of lines){
+    if(/^[-•*]\s+/.test(l)){
+      if(!inList){ html += '<ul class="agent-list">'; inList = true; }
+      html += `<li>${escapeHtml(l.replace(/^[-•*]\s+/,''))}</li>`;
+    } else {
+      if(inList){ html += '</ul>'; inList = false; }
+      html += `<p>${escapeHtml(l)}</p>`;
+    }
+  }
+  if(inList) html += '</ul>';
+  let src = '';
+  if(sources && sources.length){
+    src = `<div class="agent-sources"><div class="agent-sources-title">Fontes</div>` +
+      sources.slice(0,12).map(s=>`<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener" class="agent-source">${icon('external',13)} ${escapeHtml(s.title)}</a>`).join('') +
+      `</div>`;
+  }
+  return `<div class="agent-card fade-up">${html||'<p>Sem resultados.</p>'}${src}</div>`;
+}
+
+async function runAgent(query){
+  const q = (query||'').trim();
+  if(!q){ toast('Escreva o que pesquisar', false); return; }
+  const out = document.getElementById('agent-result');
+  const btn = document.getElementById('agent-run');
+
+  if(!ON_SERVER){
+    out.innerHTML = `<div class="agent-card"><p class="agent-note">${icon('info',16)} O Agente IA funciona no site publicado (Vercel), com a chave da API configurada. No modo local ele fica indisponível.</p></div>`;
+    return;
+  }
+  out.innerHTML = `<div class="agent-loading">${icon('clock',18)} Buscando notícias na web… pode levar alguns segundos.</div>`;
+  btn.disabled = true;
+  try{
+    const data = await api('/api/agent', { method:'POST', body:{ query:q } });
+    out.innerHTML = agentMarkup(data.text, data.sources);
+  }catch(e){
+    const note = e.status===401 ? 'Sessão expirada — faça login novamente.'
+      : `${e.message}`;
+    out.innerHTML = `<div class="agent-card"><p class="agent-note">${icon('info',16)} ${escapeHtml(note)}</p></div>`;
+  }finally{ btn.disabled = false; }
+}
+
 function resetForm(){
   editingId=null; draftType='reels';
   draftProfile = profiles[0] ? profiles[0].id : null;
@@ -549,6 +594,13 @@ function bindEvents(){
   document.getElementById('ref-close').addEventListener('click', closeRefEditor);
   document.getElementById('ref-save').addEventListener('click', saveRefForm);
   document.getElementById('ref-delete').addEventListener('click', deleteRef);
+
+  // agente IA
+  document.getElementById('agent-run').addEventListener('click',()=>runAgent(document.getElementById('agent-query').value));
+  document.querySelectorAll('.agent-chip').forEach(c=> c.addEventListener('click',()=>{
+    document.getElementById('agent-query').value = c.dataset.q;
+    runAgent(c.dataset.q);
+  }));
 
   // ações do form
   document.getElementById('btn-save').addEventListener('click',()=>saveForm());

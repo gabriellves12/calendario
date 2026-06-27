@@ -456,6 +456,44 @@ table.posts tbody tr:hover{background:var(--color-neutral-50)}
 .ref-empty{grid-column:1/-1;text-align:center;padding:60px 24px;color:var(--color-neutral-400);display:flex;flex-direction:column;align-items:center;gap:14px;border:1px dashed var(--color-neutral-200);border-radius:var(--radius-lg)}
 .ref-empty p{font-size:var(--text-sm);max-width:40ch}
 
+/* ═══════════════════════  AGENTE IA  ═══════════════════════ */
+.agent-wrap{padding:28px 40px 64px;flex:1;max-width:860px}
+.agent-intro{display:flex;align-items:flex-start;gap:16px;margin-bottom:22px}
+.agent-spark{width:46px;height:46px;border-radius:var(--radius-md);background:var(--badge-gradient);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.agent-spark svg{width:24px;height:24px}
+.agent-intro h2{font-size:var(--text-h3);font-weight:500;letter-spacing:-.01em}
+.agent-intro p{font-size:var(--text-sm);color:var(--color-neutral-500);margin-top:4px;max-width:54ch}
+.agent-chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.agent-chip{
+  font-size:var(--text-sm);padding:9px 16px;border-radius:var(--radius-full);cursor:pointer;
+  border:1px solid var(--color-neutral-100);background:var(--color-neutral-0);color:var(--color-neutral-700);
+  transition:border-color var(--transition-base),background var(--transition-base),color var(--transition-base);
+}
+.agent-chip:hover{border-color:var(--color-primary);background:var(--color-neutral-50);color:var(--color-neutral-900)}
+.agent-input{display:flex;flex-direction:column;gap:12px;margin-bottom:24px}
+.agent-input textarea{
+  font-family:var(--font-family);font-size:var(--text-body);color:var(--color-neutral-900);
+  background:var(--color-neutral-0);border:1px solid var(--color-neutral-100);border-radius:var(--radius-md);
+  padding:14px 16px;min-height:88px;resize:vertical;line-height:1.5;transition:border-color var(--transition-base);
+}
+.agent-input textarea::placeholder{color:var(--color-neutral-400)}
+.agent-input textarea:focus{outline:none;border-color:var(--color-primary)}
+.agent-input .btn{align-self:flex-start}
+.agent-loading{display:flex;align-items:center;gap:10px;font-size:var(--text-sm);color:var(--color-neutral-500);padding:20px;border:1px dashed var(--color-neutral-200);border-radius:var(--radius-md)}
+.agent-loading svg{color:var(--color-primary)}
+.agent-card{border:1px solid var(--color-neutral-100);border-radius:var(--radius-lg);padding:26px 28px;background:var(--color-neutral-0)}
+.agent-card p{font-size:var(--text-body);color:var(--color-neutral-700);line-height:1.6;margin-bottom:10px}
+.agent-note{display:flex;align-items:flex-start;gap:9px;color:var(--color-neutral-500)!important}
+.agent-note svg{color:var(--color-warning);flex-shrink:0;margin-top:3px}
+.agent-list{list-style:none;display:flex;flex-direction:column;gap:12px;margin:4px 0}
+.agent-list li{font-size:var(--text-body);color:var(--color-neutral-800);line-height:1.6;padding-left:22px;position:relative}
+.agent-list li::before{content:"";position:absolute;left:0;top:9px;width:8px;height:8px;border-radius:50%;background:var(--color-primary)}
+.agent-sources{margin-top:22px;padding-top:20px;border-top:1px solid var(--color-neutral-100)}
+.agent-sources-title{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.1em;color:var(--color-neutral-400);font-weight:500;margin-bottom:12px}
+.agent-source{display:flex;align-items:center;gap:8px;font-size:var(--text-sm);color:var(--color-secondary);text-decoration:none;padding:6px 0;transition:color var(--transition-fast)}
+.agent-source svg{color:var(--color-neutral-400);flex-shrink:0}
+.agent-source:hover{color:var(--color-primary)}
+
 /* Animações de entrada */
 .fade-up{animation:fadeUp var(--transition-enter) both}
 .fade-up.d1{animation-delay:60ms}.fade-up.d2{animation-delay:120ms}.fade-up.d3{animation-delay:180ms}.fade-up.d4{animation-delay:240ms}
@@ -469,7 +507,7 @@ table.posts tbody tr:hover{background:var(--color-neutral-50)}
   .nav{flex-direction:row;gap:4px}
   .nav-item{flex-direction:column;font-size:11px;gap:3px;padding:6px 14px}
   .main{padding-bottom:72px}
-  .topbar,.cal-wrap,.metrics-wrap,.ref-wrap{padding-left:20px;padding-right:20px}
+  .topbar,.cal-wrap,.metrics-wrap,.ref-wrap,.agent-wrap{padding-left:20px;padding-right:20px}
 }
 @media(max-width:680px){
   .cal-cell{min-height:84px}

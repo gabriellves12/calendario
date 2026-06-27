@@ -114,6 +114,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         Referências
       </button>
+      <button class="nav-item" data-view="agent">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3z"/><path d="M5 16l.8 2.2L8 19l-2.2.8L5 22l-.8-2.2L2 19l2.2-.8L5 16z"/></svg>
+        Agente IA
+      </button>
     </nav>
 
     <div class="foot">
@@ -207,6 +211,46 @@
           <span class="ref-count-lbl" id="ref-count"></span>
         </div>
         <div class="ref-grid" id="ref-grid"></div>
+      </div>
+    </section>
+
+    <!-- ========== TELA · AGENTE IA ========== -->
+    <section class="view" id="view-agent">
+      <div class="topbar">
+        <div class="topbar-left">
+          <div>
+            <h1>Agente IA</h1>
+            <div class="subtitle">Busca notícias de marketing, saúde e medicina</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="agent-wrap">
+        <div class="agent-intro">
+          <div class="agent-spark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3z"/><path d="M5 16l.8 2.2L8 19l-2.2.8L5 22l-.8-2.2L2 19l2.2-.8L5 16z"/></svg>
+          </div>
+          <div>
+            <h2>O que você quer pesquisar hoje?</h2>
+            <p>Peça as últimas notícias e tendências. O agente busca na web e traz um briefing pronto, com fontes.</p>
+          </div>
+        </div>
+
+        <div class="agent-chips">
+          <button class="agent-chip" data-q="Últimas notícias e tendências de marketing digital relevantes para uma agência de saúde">📈 Marketing</button>
+          <button class="agent-chip" data-q="Últimas notícias e novidades do setor de saúde no Brasil">🩺 Saúde</button>
+          <button class="agent-chip" data-q="Últimos avanços e notícias em medicina">🔬 Medicina</button>
+        </div>
+
+        <div class="agent-input">
+          <textarea id="agent-query" placeholder="Ex.: notícias sobre telemedicina e regulamentação no Brasil nas últimas semanas…"></textarea>
+          <button class="btn btn-primary" id="agent-run">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Buscar notícias
+          </button>
+        </div>
+
+        <div class="agent-result" id="agent-result"></div>
       </div>
     </section>
 

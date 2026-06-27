@@ -75,7 +75,18 @@ Veja `.env.example`. As principais:
 | `META_APP_ID`, `META_APP_SECRET` | Credenciais do app na Meta |
 | `META_REDIRECT_URI` | `https://SEU-DOMINIO.vercel.app/api/instagram/callback` |
 | `GRAPH_API_VERSION` | Versão da Graph API (padrão `v21.0`) |
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Injetadas pela Vercel ao criar o KV |
+| `REDIS_URL` | Injetada pela Vercel ao conectar o Redis (Upstash) |
+| `ANTHROPIC_API_KEY` | Chave da API do Claude para a aba **Agente IA** (cobrança por uso) |
+| `ANTHROPIC_MODEL` | Opcional — modelo do agente (padrão `claude-opus-4-8`) |
+
+## 🤖 Agente IA (notícias)
+
+A aba **Agente IA** usa a API do Claude (Anthropic) com **busca na web** para trazer
+notícias recentes de marketing, saúde e medicina, com fontes. Para ativar:
+1. Crie uma chave em **console.anthropic.com** (cobrança por uso, separada da assinatura).
+2. Adicione `ANTHROPIC_API_KEY` nas Environment Variables da Vercel → Redeploy.
+
+Rota: `POST /api/agent` (`{ query }`) → `{ text, sources }`.
 
 ---
 
