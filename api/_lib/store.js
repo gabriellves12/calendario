@@ -1,49 +1,50 @@
 /**
- * Armazenamento simples chave-valor.
- * Usa Vercel KV quando disponível; cai para memória efêmera em dev/local
- * (os dados se perdem ao reiniciar — bom o suficiente para testes).
+ * Armazenamento chave-valor sobre Redis (Upstash) via API REST — sem dependências.
+ * Funciona com as variáveis do "Vercel KV" (KV_REST_API_*) OU do provedor
+ * Upstash no Marketplace (UPSTASH_REDIS_REST_*). Se nenhuma existir, cai para
+ * memória efêmera (bom para testes locais; perde dados ao reiniciar).
  */
-let _kv = null;          // instância do KV, ou false se ausente
-const _mem = new Map();  // fallback em memória
+const URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
+const TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const HAS_REDIS = !!(URL && TOKEN);
 
-async function kv() {
-  if (_kv !== null) return _kv;
-  try {
-    const mod = await import('@vercel/kv');
-    // Só usa se as variáveis do KV existirem
-    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      _kv = mod.kv;
-    } else {
-      _kv = false;
-      console.warn('[store] KV não configurado — usando memória efêmera.');
-    }
-  } catch {
-    _kv = false;
-    console.warn('[store] @vercel/kv ausente — usando memória efêmera.');
-  }
-  return _kv;
+const _mem = new Map();
+let _warned = false;
+function warnOnce() {
+  if (!_warned) { _warned = true; console.warn('[store] Redis (KV/Upstash) não configurado — usando memória efêmera.'); }
+}
+
+/** Envia um comando Redis no formato de array para a REST API do Upstash. */
+async function redis(...command) {
+  const r = await fetch(URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+  });
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok || json.error) throw new Error(json.error || `Redis erro (${r.status})`);
+  return json.result;
 }
 
 export async function setItem(key, value) {
-  const c = await kv();
-  if (c) return c.set(key, value);
-  _mem.set(key, value);
+  if (!HAS_REDIS) { warnOnce(); _mem.set(key, value); return; }
+  await redis('SET', key, JSON.stringify(value));
 }
 
 export async function getItem(key) {
-  const c = await kv();
-  if (c) return await c.get(key);
-  return _mem.has(key) ? _mem.get(key) : null;
+  if (!HAS_REDIS) { warnOnce(); return _mem.has(key) ? _mem.get(key) : null; }
+  const v = await redis('GET', key);
+  if (v == null) return null;
+  try { return JSON.parse(v); } catch { return v; }
 }
 
 export async function delItem(key) {
-  const c = await kv();
-  if (c) return c.del(key);
-  _mem.delete(key);
+  if (!HAS_REDIS) { warnOnce(); _mem.delete(key); return; }
+  await redis('DEL', key);
 }
 
 /* Chaves usadas pelo app */
 export const KEYS = {
-  igAccount: 'ig:account',   // { igUserId, accessToken, username, expiresAt }
+  igAccount: 'ig:account',   // { igUserId, accessToken, username, ... }
   posts: 'posts:all',        // espelho opcional dos posts (futuro)
 };

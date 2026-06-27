@@ -56,7 +56,7 @@ No backend, isso vira as variáveis `TEAM_USER` / `TEAM_PASS`. Para trocar a sen
 
 1. Suba o projeto para um repositório (GitHub/GitLab) **ou** rode `vercel` na pasta.
 2. Em **Vercel → New Project**, importe o repositório. Não há build step (frontend estático + funções `/api`).
-3. Adicione um **KV Store**: aba **Storage → Create → KV**, conecte ao projeto. Isso injeta `KV_REST_API_URL` e `KV_REST_API_TOKEN` automaticamente.
+3. Adicione um **Redis** (guarda o token do Instagram): aba **Storage → Marketplace → Upstash → Redis** (o antigo "Vercel KV" virou integração do Marketplace). Conecte ao projeto — as variáveis de conexão são injetadas automaticamente (`KV_REST_API_*` ou `UPSTASH_REDIS_REST_*`; o app aceita ambas).
 4. Configure as variáveis de ambiente (próxima seção) em **Settings → Environment Variables**.
 5. Deploy. A URL final (ex.: `https://nevel-conteudo.vercel.app`) é o endereço do painel.
 
