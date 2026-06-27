@@ -369,7 +369,12 @@ function dashboardMarkup(){
 }
 
 /* ═══════════════════════  SEED (exemplo inicial)  ═══════════════════════ */
+const SEED_KEY = 'nevel_seeded_v1';
 function seedIfEmpty(){
+  // só semeia uma única vez (na primeira abertura). Depois disso, nunca mais
+  // re-insere os exemplos — assim conteúdos excluídos não voltam ao recarregar.
+  if(localStorage.getItem(SEED_KEY)==='1') return;
+  localStorage.setItem(SEED_KEY,'1');
   if(Object.keys(posts).length) return;
   const t=new Date(); const y=t.getFullYear(), m=t.getMonth();
   const mk=(day)=>keyOf(new Date(y,m,day));

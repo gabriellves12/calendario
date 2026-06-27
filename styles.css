@@ -61,10 +61,16 @@ html{scroll-behavior:smooth}
 .auth-logo svg{height:30px;width:auto}
 .auth-card h1{font-size:var(--text-h3);font-weight:500;letter-spacing:-.01em;text-align:center}
 .auth-card .auth-sub{font-size:var(--text-sm);color:var(--color-neutral-500);text-align:center;margin-top:-12px}
-.auth-pass{position:relative;display:flex;flex-direction:column;gap:7px}
-.auth-pass .toggle-pass{position:absolute;right:10px;top:32px;background:none;border:none;color:var(--color-neutral-400);cursor:pointer;padding:4px;display:flex}
-.auth-pass .toggle-pass:hover{color:var(--color-neutral-700)}
-.auth-pass .toggle-pass svg{width:18px;height:18px}
+.input-wrap{position:relative;display:flex;align-items:center}
+.field .input-wrap input[type=text],
+.field .input-wrap input[type=password]{width:100%;padding:13px 14px 13px 44px}
+.field .input-wrap.has-toggle input[type=password]{padding-right:44px}
+.input-wrap .lead-icon{position:absolute;left:14px;color:var(--color-neutral-400);display:flex;pointer-events:none}
+.input-wrap .lead-icon svg{width:18px;height:18px}
+.input-wrap input:focus + .lead-icon,.input-wrap input:focus ~ .lead-icon{color:var(--color-primary)}
+.toggle-pass{position:absolute;right:11px;background:none;border:none;color:var(--color-neutral-400);cursor:pointer;padding:4px;display:flex}
+.toggle-pass:hover{color:var(--color-neutral-700)}
+.toggle-pass svg{width:18px;height:18px}
 .auth-error{font-size:var(--text-sm);color:var(--color-error);display:none;align-items:center;gap:7px;background:#FDECEC;padding:10px 13px;border-radius:var(--radius-sm)}
 .auth-error.show{display:flex}
 .auth-error svg{width:16px;height:16px;flex-shrink:0}
@@ -247,7 +253,7 @@ a{color:inherit}
 .field{display:flex;flex-direction:column;gap:7px}
 .field label{font-size:var(--text-sm);color:var(--color-neutral-700);font-weight:500;display:flex;align-items:center;gap:7px}
 .field .req{color:var(--color-primary)}
-.field input[type=text],.field input[type=url],.field input[type=time],.field textarea,.field select{
+.field input[type=text],.field input[type=url],.field input[type=time],.field input[type=password],.field textarea,.field select{
   font-size:var(--text-sm);color:var(--color-neutral-900);background:var(--color-neutral-0);
   border:1px solid var(--color-neutral-100);border-radius:var(--radius-sm);padding:11px 13px;width:100%;
   transition:border-color var(--transition-base);
