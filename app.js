@@ -41,7 +41,6 @@ function icon(name, w=18){return `<svg viewBox="0 0 24 24" fill="none" stroke="c
 
 /* ---------- Estado ---------- */
 const STORE_KEY = 'nevel_posts_v1';
-const IG_KEY = 'nevel_ig_connected';
 let posts = load();
 let viewDate = new Date(); viewDate.setDate(1);
 let activeDayKey = null;
@@ -77,7 +76,6 @@ async function api(path, { method='GET', body } = {}){
 function switchView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+name));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===name));
-  if(name==='metrics') renderMetrics();
 }
 
 /* ═══════════════════════  CALENDÁRIO  ═══════════════════════ */
@@ -149,8 +147,6 @@ function renderDayList(){
     return `<div class="post-card ${editingId===p.id?'editing':''}" data-edit="${p.id}">
       <div class="post-card-top">
         <span class="post-card-time">${icon('clock',14)} ${p.time||'--:--'}</span>
-        ${p.posted?`<span class="badge badge-posted">${icon('check',12)} Publicado</span>`
-          :p.scheduled?`<span class="badge badge-scheduled">${icon('check',12)} Agendado</span>`:''}
       </div>
       <div class="post-card-title">${escapeHtml(title)}</div>
       <div class="post-card-meta">
@@ -168,15 +164,6 @@ function renderSegmented(){
   ).join('');
 }
 
-function refreshActionButtons(p){
-  const sch=document.getElementById('btn-schedule');
-  const post=document.getElementById('btn-post');
-  if(p&&p.scheduled){ sch.innerHTML=`${icon('check',16)} Agendado`; sch.classList.add('btn-secondary'); sch.classList.remove('btn-outline'); }
-  else { sch.innerHTML=`${icon('send',16)} Agendar`; sch.classList.add('btn-outline'); sch.classList.remove('btn-secondary'); }
-  if(p&&p.posted){ post.innerHTML=`${icon('check',16)} Publicado`; post.disabled=true; post.classList.add('btn-secondary'); post.classList.remove('btn-primary'); }
-  else { post.innerHTML=`${icon('instagram',16)} Postar agora`; post.disabled=false; post.classList.add('btn-primary'); post.classList.remove('btn-secondary'); }
-}
-
 function resetForm(){
   editingId=null; draftType='reels';
   document.getElementById('f-content').value='';
@@ -185,7 +172,6 @@ function resetForm(){
   document.getElementById('f-caption').value='';
   document.getElementById('btn-delete').style.display='none';
   document.getElementById('form-title').textContent = 'Novo conteúdo';
-  refreshActionButtons(null);
   updateCharCount();
   renderSegmented();
   renderDayList();
@@ -201,7 +187,6 @@ function loadIntoForm(id){
   document.getElementById('f-caption').value=p.caption||'';
   document.getElementById('btn-delete').style.display='inline-flex';
   document.getElementById('form-title').textContent = 'Editar conteúdo';
-  refreshActionButtons(p);
   updateCharCount();
   renderSegmented();
   renderDayList();
@@ -218,66 +203,23 @@ function collectForm(){
   };
 }
 
-function saveForm(markScheduled=null){
+function saveForm(){
   const data = collectForm();
   if(!data.content && !data.caption){ toast('Preencha o conteúdo ou a legenda', false); return; }
   if(!posts[activeDayKey]) posts[activeDayKey]=[];
   if(editingId){
     const p = posts[activeDayKey].find(x=>x.id===editingId);
     Object.assign(p, data);
-    if(markScheduled!==null) p.scheduled = markScheduled;
-    toast(markScheduled ? 'Conteúdo agendado' : 'Conteúdo atualizado');
+    toast('Conteúdo atualizado');
   } else {
-    const p = { id:uid(), ...data, scheduled: markScheduled===true };
+    const p = { id:uid(), ...data };
     posts[activeDayKey].push(p);
     editingId = p.id;
-    toast(markScheduled ? 'Conteúdo agendado' : 'Conteúdo salvo');
+    toast('Conteúdo salvo');
   }
   save();
   renderCalendar();
   renderDayList();
-  const cur = (posts[activeDayKey]||[]).find(x=>x.id===editingId);
-  refreshActionButtons(cur);
-}
-
-/* Publicação direta no Instagram via backend; em modo local, simula. */
-async function publishPost(){
-  const data = collectForm();
-  if(!data.content && !data.caption){ toast('Preencha o conteúdo ou a legenda antes de postar', false); return; }
-  saveForm(null); // garante que está salvo e que temos editingId
-  const p = (posts[activeDayKey]||[]).find(x=>x.id===editingId);
-
-  // ── Publicação real (Vercel) ──
-  if(ON_SERVER){
-    if(!data.driveUrl){
-      toast('Informe a URL pública da mídia (campo Drive) para publicar', false); return;
-    }
-    if(!confirm('Publicar este conteúdo agora no Instagram da Nevel MED?')) return;
-    const btn = document.getElementById('btn-post');
-    const prev = btn.innerHTML; btn.disabled = true; btn.innerHTML = `${icon('clock',16)} Publicando…`;
-    try{
-      const res = await api('/api/instagram/publish', { method:'POST', body:{ type:data.type, caption:(data.caption||data.content), mediaUrl:data.driveUrl } });
-      if(p){ p.posted = true; p.scheduled = true; p.mediaId = res.mediaId; save(); }
-      renderCalendar(); renderDayList(); refreshActionButtons(p);
-      toast('Publicado no Instagram ✓');
-    }catch(e){
-      btn.innerHTML = prev; btn.disabled = false;
-      if(e.status===409) toast('Conecte o Instagram (aba Métricas) antes de postar', false);
-      else if(e.status===401) toast('Sessão expirada — faça login novamente', false);
-      else toast('Falha ao publicar: ' + e.message, false);
-      return;
-    }
-    return;
-  }
-
-  // ── Modo demonstração (local) ──
-  if(!data.driveUrl){
-    if(!confirm('Nenhum link de mídia (Drive) foi informado.\n\nA publicação real precisa de uma imagem ou vídeo. Deseja continuar mesmo assim (modo demonstração)?')) return;
-  }
-  if(!confirm('Publicar este conteúdo agora no Instagram da Nevel MED?\n\n⚠ MODO DEMONSTRAÇÃO (local) — no site publicado na Vercel, este botão publica de verdade.')) return;
-  if(p){ p.posted = true; p.scheduled = true; save(); }
-  renderCalendar(); renderDayList(); refreshActionButtons(p);
-  toast('Publicação simulada ✓ (modo demonstração)');
 }
 
 function deletePost(){
@@ -300,171 +242,6 @@ function toast(msg, ok=true){
   el.querySelector('svg').style.color = ok ? 'var(--color-primary)' : 'var(--color-error)';
   el.classList.add('show');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
-}
-
-/* ═══════════════════════  MÉTRICAS  ═══════════════════════ */
-function isConnected(){ return localStorage.getItem(IG_KEY)==='1'; }
-
-async function renderMetrics(){
-  const wrap = document.getElementById('metrics-wrap');
-
-  // ── Modo servidor (Vercel): usa o backend real ──
-  if(ON_SERVER){
-    try{
-      const status = await api('/api/instagram/status');
-      if(!status.connected){ wrap.innerHTML = connectMarkup(false); bindConnect(); return; }
-      wrap.innerHTML = `<div class="demo-banner fade-up">${icon('clock',18)} <span>Carregando métricas do Instagram…</span></div>`;
-      try{
-        const metrics = await api('/api/instagram/metrics');
-        wrap.innerHTML = dashboardMarkup(modelFromServer(metrics, status));
-      }catch(e){
-        wrap.innerHTML = `<div class="demo-banner fade-up">${icon('info',18)} <span>Conectado como <b>@${escapeHtml(status.username||'')}</b>, mas não foi possível carregar as métricas: ${escapeHtml(e.message)}</span></div>` + dashboardMarkup({ ...DEMO, isDemo:true });
-      }
-      animateBars(); bindDisconnect();
-      return;
-    }catch(e){
-      // backend ausente/não configurado → cai para o modo demo local
-    }
-  }
-
-  // ── Modo demonstração (local ou backend indisponível) ──
-  if(!isConnected()){ wrap.innerHTML = connectMarkup(true); bindConnect(); return; }
-  wrap.innerHTML = dashboardMarkup({ ...DEMO, isDemo:true });
-  animateBars(); bindDisconnect();
-}
-
-function animateBars(){
-  requestAnimationFrame(()=>{
-    document.querySelectorAll('#metrics-wrap .bar').forEach(b=>{ b.style.height=b.dataset.h+'%'; });
-  });
-}
-
-function connectMarkup(demo){
-  return `<div class="connect-card fade-up">
-    <div class="ig-icon">${icon('instagram',34)}</div>
-    <h2>Conecte sua conta do Instagram</h2>
-    <p>Importe automaticamente o desempenho dos seus posts — visualizações, alcance, curtidas, comentários e mais — direto no painel.</p>
-    <button class="btn btn-primary" id="btn-connect">${icon('instagram',16)} Conectar Instagram</button>
-    <div class="note">${demo
-      ? 'Você está no <b>modo local</b> — clicar acima abre um <b>painel de demonstração</b>. No site publicado (Vercel), este botão inicia a conexão real via Instagram Graph API.'
-      : 'Você será redirecionado ao Facebook para autorizar o acesso à conta Business da Nevel MED.'}</div>
-  </div>`;
-}
-function bindConnect(){
-  document.getElementById('btn-connect')?.addEventListener('click', ()=>{
-    if(ON_SERVER){ window.location.href = '/api/instagram/connect'; }
-    else { localStorage.setItem(IG_KEY,'1'); renderMetrics(); toast('Instagram conectado (demo)'); }
-  });
-}
-function bindDisconnect(){
-  document.getElementById('btn-disconnect')?.addEventListener('click', async ()=>{
-    if(ON_SERVER){ try{ await api('/api/instagram/disconnect',{method:'POST'}); }catch{} }
-    localStorage.removeItem(IG_KEY); renderMetrics(); toast('Conta desconectada');
-  });
-}
-
-/* Converte a resposta do backend no modelo que o dashboard consome */
-function fmtNum(n){ return (n==null||n==='') ? '—' : Number(n).toLocaleString('pt-BR'); }
-function modelFromServer(metrics, status){
-  const rows = (metrics.rows||[]).map(r=>({
-    type:(r.type||'imagem'), name:r.name,
-    reach:fmtNum(r.reach), likes:fmtNum(r.likes), comments:fmtNum(r.comments),
-    shares:fmtNum(r.shares), saves:fmtNum(r.saves), permalink:r.permalink,
-  }));
-  const sum = (k)=> (metrics.rows||[]).reduce((a,r)=> a + (Number(r[k])||0), 0);
-  const kpis = [
-    {label:'Alcance',          val:fmtNum(sum('reach')),    delta:'', up:true, ic:'reach'},
-    {label:'Curtidas',         val:fmtNum(sum('likes')),    delta:'', up:true, ic:'heart'},
-    {label:'Comentários',      val:fmtNum(sum('comments')), delta:'', up:true, ic:'comment'},
-    {label:'Compartilhamentos',val:fmtNum(sum('shares')),   delta:'', up:true, ic:'share'},
-    {label:'Salvamentos',      val:fmtNum(sum('saves')),    delta:'', up:true, ic:'bookmark'},
-    {label:'Posts',            val:String((metrics.rows||[]).length), delta:'', up:true, ic:'cal'},
-  ];
-  const chart = (metrics.rows||[]).slice(0,7).reverse().map((r,i)=>({ label:'#'+(i+1), v:Number(r.reach)||0 }));
-  return { handle:'@'+(status.username||metrics.username||''), followers:null, kpis, chart, rows, isDemo:false };
-}
-
-/* Dados de demonstração */
-const DEMO = {
-  handle:'@nevel.med', followers:'12.480',
-  kpis:[
-    {key:'reach',   label:'Alcance',         val:'48.2k', delta:'+12,4%', up:true,  ic:'reach'},
-    {key:'views',   label:'Visualizações',   val:'73.9k', delta:'+8,1%',  up:true,  ic:'eye'},
-    {key:'likes',   label:'Curtidas',        val:'5.140', delta:'+3,2%',  up:true,  ic:'heart'},
-    {key:'comments',label:'Comentários',     val:'412',   delta:'-1,5%',  up:false, ic:'comment'},
-    {key:'shares',  label:'Compartilhamentos',val:'1.286', delta:'+21,7%', up:true, ic:'share'},
-    {key:'saves',   label:'Salvamentos',     val:'2.034', delta:'+9,9%',  up:true,  ic:'bookmark'},
-  ],
-  chart:[
-    {label:'01/06', v:62},{label:'05/06', v:48},{label:'09/06', v:81},
-    {label:'13/06', v:55},{label:'17/06', v:93},{label:'21/06', v:70},{label:'25/06', v:100},
-  ],
-  rows:[
-    {type:'reels',     name:'5 sinais de burnout médico',      reach:'18.4k', likes:'2.1k', comments:148, shares:512, saves:890},
-    {type:'carrossel', name:'Como estruturar um plano de saúde',reach:'11.2k', likes:'1.3k', comments:96,  shares:284, saves:640},
-    {type:'reels',     name:'Bastidores do consultório',        reach:'9.8k',  likes:'870',  comments:54,  shares:198, saves:310},
-    {type:'story',     name:'Enquete: maior dúvida na consulta', reach:'5.1k',  likes:'—',    comments:32,  shares:41,  saves:18},
-    {type:'imagem',    name:'Frase institucional da semana',     reach:'3.7k',  likes:'410',  comments:22,  shares:60,  saves:74},
-  ],
-};
-function dashboardMarkup(m){
-  const chart = m.chart && m.chart.length ? m.chart : [{label:'—',v:0}];
-  const maxV = Math.max(1, ...chart.map(c=>c.v));
-  const bars = chart.map(c=>{
-    const h = Math.round(c.v/maxV*100);
-    const label = m.isDemo ? `${Math.round(c.v/100*48200).toLocaleString('pt-BR')} alcance` : `${Number(c.v).toLocaleString('pt-BR')} alcance`;
-    return `<div class="bar-col"><div class="bar" data-h="${h}" data-val="${label}" style="height:0%"></div><span class="bar-label">${c.label}</span></div>`;
-  }).join('');
-  const kpis = m.kpis.map((k,i)=>`
-    <div class="kpi fade-up d${(i%4)+1}">
-      <div class="kpi-top"><span class="kpi-label">${k.label}</span><span class="kpi-ic">${icon(k.ic,17)}</span></div>
-      <div class="kpi-val">${k.val}</div>
-      ${k.delta ? `<div class="kpi-delta ${k.up?'up':'down'}">${icon('trend',13)} ${k.delta} <span style="color:var(--color-neutral-400)">vs. mês anterior</span></div>` : ''}
-    </div>`).join('');
-  const rows = m.rows.map(r=>{
-    const t=TYPES.find(t=>t.id===r.type);
-    const name = r.permalink ? `<a href="${r.permalink}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${escapeHtml(r.name)}</a>` : escapeHtml(r.name);
-    return `<tr>
-      <td><div class="post-name"><span class="post-thumb">${icon('cal',16)}</span><div><div>${name}</div><span class="type-pill type-${r.type}" style="margin-top:4px"><span class="dot"></span>${t?.label||r.type}</span></div></div></td>
-      <td class="num">${r.reach}</td><td class="num">${r.likes}</td><td class="num">${r.comments}</td><td class="num">${r.shares}</td><td class="num">${r.saves}</td>
-    </tr>`;
-  }).join('');
-
-  const banner = m.isDemo
-    ? `<div class="demo-banner fade-up">${icon('info',18)} <span>Exibindo <b>dados de demonstração</b>. Conecte o Instagram no site publicado (Vercel) para ver os números reais.</span></div>`
-    : '';
-  const statusBadge = m.isDemo
-    ? `<span class="badge badge-scheduled" style="margin-left:6px">${icon('check',12)} Conectado · demo</span>`
-    : `<span class="badge badge-posted" style="margin-left:6px">${icon('check',12)} Conectado</span>`;
-  const avatarLetter = (m.handle||'N').replace('@','').charAt(0).toUpperCase() || 'N';
-
-  return `
-  ${banner}
-  <div class="metrics-head fade-up d1">
-    <div class="account-chip">
-      <div class="ava">${avatarLetter}</div>
-      <div><div class="handle">${escapeHtml(m.handle||'')}</div><div class="followers">${m.followers ? escapeHtml(m.followers)+' seguidores' : 'conta conectada'}</div></div>
-      ${statusBadge}
-    </div>
-    <button class="btn btn-outline" id="btn-disconnect">Desconectar</button>
-  </div>
-
-  <div class="kpi-grid">${kpis}</div>
-
-  <div class="panel fade-up d2">
-    <div class="panel-head"><div><h3>Alcance por publicação</h3></div><span class="sub">Posts recentes</span></div>
-    <div class="chart">${bars}</div>
-  </div>
-
-  <div class="panel fade-up d3">
-    <div class="panel-head"><h3>Posts recentes</h3><span class="sub">Desempenho individual</span></div>
-    <div class="table-wrap">
-      <table class="posts">
-        <thead><tr><th>Publicação</th><th class="num">Alcance</th><th class="num">Curtidas</th><th class="num">Comentários</th><th class="num">Compart.</th><th class="num">Salvos</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-  </div>`;
 }
 
 /* ═══════════════════════  SEED (exemplo inicial)  ═══════════════════════ */
@@ -525,12 +302,7 @@ function bindEvents(){
   });
 
   // ações do form
-  document.getElementById('btn-save').addEventListener('click',()=>saveForm(null));
-  document.getElementById('btn-schedule').addEventListener('click',()=>{
-    const p = editingId ? (posts[activeDayKey]||[]).find(x=>x.id===editingId) : null;
-    saveForm(p?.scheduled ? false : true);
-  });
-  document.getElementById('btn-post').addEventListener('click', publishPost);
+  document.getElementById('btn-save').addEventListener('click',()=>saveForm());
   document.getElementById('btn-delete').addEventListener('click', deletePost);
   document.getElementById('btn-new-post').addEventListener('click', resetForm);
   document.getElementById('f-caption').addEventListener('input', updateCharCount);
@@ -605,12 +377,3 @@ seedIfEmpty();
 bindEvents();
 renderCalendar();
 initAuth();
-
-// Retorno do OAuth do Instagram → abre a aba Métricas
-if(location.search.includes('ig=connected') || location.hash === '#metrics'){
-  switchView('metrics');
-  if(location.search.includes('ig=connected')){
-    toast('Instagram conectado ✓');
-    history.replaceState(null, '', location.pathname);
-  }
-}
