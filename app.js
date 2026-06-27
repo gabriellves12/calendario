@@ -60,6 +60,19 @@ function isToday(d){ const t=new Date(); return d.getFullYear()===t.getFullYear(
 function uid(){ return 'p'+Math.random().toString(36).slice(2,9); }
 function postsFor(key){ return (posts[key]||[]).slice().sort((a,b)=>(a.time||'').localeCompare(b.time||'')); }
 
+/* ---------- Backend (Vercel /api) ---------- */
+// Quando aberto localmente (file://), não há backend → o app cai no modo demo.
+// Em produção (https), usa as rotas reais.
+const ON_SERVER = location.protocol === 'http:' || location.protocol === 'https:';
+async function api(path, { method='GET', body } = {}){
+  const opts = { method, headers:{}, credentials:'same-origin' };
+  if(body){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  const r = await fetch(path, opts);
+  let data = {}; try{ data = await r.json(); }catch{}
+  if(!r.ok){ const e = new Error(data.error || ('HTTP '+r.status)); e.status = r.status; e.data = data; throw e; }
+  return data;
+}
+
 /* ═══════════════════════  NAVEGAÇÃO ENTRE TELAS  ═══════════════════════ */
 function switchView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+name));
@@ -227,16 +240,41 @@ function saveForm(markScheduled=null){
   refreshActionButtons(cur);
 }
 
-/* Publicação direta no Instagram (modo demonstração até a integração com backend) */
-function publishPost(){
+/* Publicação direta no Instagram via backend; em modo local, simula. */
+async function publishPost(){
   const data = collectForm();
   if(!data.content && !data.caption){ toast('Preencha o conteúdo ou a legenda antes de postar', false); return; }
+  saveForm(null); // garante que está salvo e que temos editingId
+  const p = (posts[activeDayKey]||[]).find(x=>x.id===editingId);
+
+  // ── Publicação real (Vercel) ──
+  if(ON_SERVER){
+    if(!data.driveUrl){
+      toast('Informe a URL pública da mídia (campo Drive) para publicar', false); return;
+    }
+    if(!confirm('Publicar este conteúdo agora no Instagram da Nevel MED?')) return;
+    const btn = document.getElementById('btn-post');
+    const prev = btn.innerHTML; btn.disabled = true; btn.innerHTML = `${icon('clock',16)} Publicando…`;
+    try{
+      const res = await api('/api/instagram/publish', { method:'POST', body:{ type:data.type, caption:(data.caption||data.content), mediaUrl:data.driveUrl } });
+      if(p){ p.posted = true; p.scheduled = true; p.mediaId = res.mediaId; save(); }
+      renderCalendar(); renderDayList(); refreshActionButtons(p);
+      toast('Publicado no Instagram ✓');
+    }catch(e){
+      btn.innerHTML = prev; btn.disabled = false;
+      if(e.status===409) toast('Conecte o Instagram (aba Métricas) antes de postar', false);
+      else if(e.status===401) toast('Sessão expirada — faça login novamente', false);
+      else toast('Falha ao publicar: ' + e.message, false);
+      return;
+    }
+    return;
+  }
+
+  // ── Modo demonstração (local) ──
   if(!data.driveUrl){
     if(!confirm('Nenhum link de mídia (Drive) foi informado.\n\nA publicação real precisa de uma imagem ou vídeo. Deseja continuar mesmo assim (modo demonstração)?')) return;
   }
-  saveForm(null); // garante que está salvo e que temos editingId
-  const p = (posts[activeDayKey]||[]).find(x=>x.id===editingId);
-  if(!confirm('Publicar este conteúdo agora no Instagram da Nevel MED?\n\n⚠ No momento em MODO DEMONSTRAÇÃO — a publicação automática real será habilitada com a integração da Instagram Graph API (requer backend + app Meta aprovado).')) return;
+  if(!confirm('Publicar este conteúdo agora no Instagram da Nevel MED?\n\n⚠ MODO DEMONSTRAÇÃO (local) — no site publicado na Vercel, este botão publica de verdade.')) return;
   if(p){ p.posted = true; p.scheduled = true; save(); }
   renderCalendar(); renderDayList(); refreshActionButtons(p);
   toast('Publicação simulada ✓ (modo demonstração)');
@@ -267,32 +305,83 @@ function toast(msg, ok=true){
 /* ═══════════════════════  MÉTRICAS  ═══════════════════════ */
 function isConnected(){ return localStorage.getItem(IG_KEY)==='1'; }
 
-function renderMetrics(){
+async function renderMetrics(){
   const wrap = document.getElementById('metrics-wrap');
-  if(!isConnected()){ wrap.innerHTML = connectMarkup(); bindConnect(); return; }
-  wrap.innerHTML = dashboardMarkup();
-  // anima barras
+
+  // ── Modo servidor (Vercel): usa o backend real ──
+  if(ON_SERVER){
+    try{
+      const status = await api('/api/instagram/status');
+      if(!status.connected){ wrap.innerHTML = connectMarkup(false); bindConnect(); return; }
+      wrap.innerHTML = `<div class="demo-banner fade-up">${icon('clock',18)} <span>Carregando métricas do Instagram…</span></div>`;
+      try{
+        const metrics = await api('/api/instagram/metrics');
+        wrap.innerHTML = dashboardMarkup(modelFromServer(metrics, status));
+      }catch(e){
+        wrap.innerHTML = `<div class="demo-banner fade-up">${icon('info',18)} <span>Conectado como <b>@${escapeHtml(status.username||'')}</b>, mas não foi possível carregar as métricas: ${escapeHtml(e.message)}</span></div>` + dashboardMarkup({ ...DEMO, isDemo:true });
+      }
+      animateBars(); bindDisconnect();
+      return;
+    }catch(e){
+      // backend ausente/não configurado → cai para o modo demo local
+    }
+  }
+
+  // ── Modo demonstração (local ou backend indisponível) ──
+  if(!isConnected()){ wrap.innerHTML = connectMarkup(true); bindConnect(); return; }
+  wrap.innerHTML = dashboardMarkup({ ...DEMO, isDemo:true });
+  animateBars(); bindDisconnect();
+}
+
+function animateBars(){
   requestAnimationFrame(()=>{
     document.querySelectorAll('#metrics-wrap .bar').forEach(b=>{ b.style.height=b.dataset.h+'%'; });
   });
-  document.getElementById('btn-disconnect')?.addEventListener('click', ()=>{
-    localStorage.removeItem(IG_KEY); renderMetrics(); toast('Conta desconectada');
-  });
 }
 
-function connectMarkup(){
+function connectMarkup(demo){
   return `<div class="connect-card fade-up">
     <div class="ig-icon">${icon('instagram',34)}</div>
     <h2>Conecte sua conta do Instagram</h2>
     <p>Importe automaticamente o desempenho dos seus posts — visualizações, alcance, curtidas, comentários e mais — direto no painel.</p>
     <button class="btn btn-primary" id="btn-connect">${icon('instagram',16)} Conectar Instagram</button>
-    <div class="note">A integração real usa a <b>Instagram Graph API</b> (conta Business + app Meta aprovado). Por enquanto, clicar acima carrega um <b>painel de demonstração</b> com dados de exemplo para você visualizar a tela.</div>
+    <div class="note">${demo
+      ? 'Você está no <b>modo local</b> — clicar acima abre um <b>painel de demonstração</b>. No site publicado (Vercel), este botão inicia a conexão real via Instagram Graph API.'
+      : 'Você será redirecionado ao Facebook para autorizar o acesso à conta Business da Nevel MED.'}</div>
   </div>`;
 }
 function bindConnect(){
   document.getElementById('btn-connect')?.addEventListener('click', ()=>{
-    localStorage.setItem(IG_KEY,'1'); renderMetrics(); toast('Instagram conectado (demo)');
+    if(ON_SERVER){ window.location.href = '/api/instagram/connect'; }
+    else { localStorage.setItem(IG_KEY,'1'); renderMetrics(); toast('Instagram conectado (demo)'); }
   });
+}
+function bindDisconnect(){
+  document.getElementById('btn-disconnect')?.addEventListener('click', async ()=>{
+    if(ON_SERVER){ try{ await api('/api/instagram/disconnect',{method:'POST'}); }catch{} }
+    localStorage.removeItem(IG_KEY); renderMetrics(); toast('Conta desconectada');
+  });
+}
+
+/* Converte a resposta do backend no modelo que o dashboard consome */
+function fmtNum(n){ return (n==null||n==='') ? '—' : Number(n).toLocaleString('pt-BR'); }
+function modelFromServer(metrics, status){
+  const rows = (metrics.rows||[]).map(r=>({
+    type:(r.type||'imagem'), name:r.name,
+    reach:fmtNum(r.reach), likes:fmtNum(r.likes), comments:fmtNum(r.comments),
+    shares:fmtNum(r.shares), saves:fmtNum(r.saves), permalink:r.permalink,
+  }));
+  const sum = (k)=> (metrics.rows||[]).reduce((a,r)=> a + (Number(r[k])||0), 0);
+  const kpis = [
+    {label:'Alcance',          val:fmtNum(sum('reach')),    delta:'', up:true, ic:'reach'},
+    {label:'Curtidas',         val:fmtNum(sum('likes')),    delta:'', up:true, ic:'heart'},
+    {label:'Comentários',      val:fmtNum(sum('comments')), delta:'', up:true, ic:'comment'},
+    {label:'Compartilhamentos',val:fmtNum(sum('shares')),   delta:'', up:true, ic:'share'},
+    {label:'Salvamentos',      val:fmtNum(sum('saves')),    delta:'', up:true, ic:'bookmark'},
+    {label:'Posts',            val:String((metrics.rows||[]).length), delta:'', up:true, ic:'cal'},
+  ];
+  const chart = (metrics.rows||[]).slice(0,7).reverse().map((r,i)=>({ label:'#'+(i+1), v:Number(r.reach)||0 }));
+  return { handle:'@'+(status.username||metrics.username||''), followers:null, kpis, chart, rows, isDemo:false };
 }
 
 /* Dados de demonstração */
@@ -318,34 +407,44 @@ const DEMO = {
     {type:'imagem',    name:'Frase institucional da semana',     reach:'3.7k',  likes:'410',  comments:22,  shares:60,  saves:74},
   ],
 };
-function dashboardMarkup(){
-  const maxV = Math.max(...DEMO.chart.map(c=>c.v));
-  const bars = DEMO.chart.map(c=>{
+function dashboardMarkup(m){
+  const chart = m.chart && m.chart.length ? m.chart : [{label:'—',v:0}];
+  const maxV = Math.max(1, ...chart.map(c=>c.v));
+  const bars = chart.map(c=>{
     const h = Math.round(c.v/maxV*100);
-    return `<div class="bar-col"><div class="bar" data-h="${h}" data-val="${Math.round(c.v/100*48200).toLocaleString('pt-BR')} alcance" style="height:0%"></div><span class="bar-label">${c.label}</span></div>`;
+    const label = m.isDemo ? `${Math.round(c.v/100*48200).toLocaleString('pt-BR')} alcance` : `${Number(c.v).toLocaleString('pt-BR')} alcance`;
+    return `<div class="bar-col"><div class="bar" data-h="${h}" data-val="${label}" style="height:0%"></div><span class="bar-label">${c.label}</span></div>`;
   }).join('');
-  const kpis = DEMO.kpis.map((k,i)=>`
+  const kpis = m.kpis.map((k,i)=>`
     <div class="kpi fade-up d${(i%4)+1}">
       <div class="kpi-top"><span class="kpi-label">${k.label}</span><span class="kpi-ic">${icon(k.ic,17)}</span></div>
       <div class="kpi-val">${k.val}</div>
-      <div class="kpi-delta ${k.up?'up':'down'}">${icon('trend',13)} ${k.delta} <span style="color:var(--color-neutral-400)">vs. mês anterior</span></div>
+      ${k.delta ? `<div class="kpi-delta ${k.up?'up':'down'}">${icon('trend',13)} ${k.delta} <span style="color:var(--color-neutral-400)">vs. mês anterior</span></div>` : ''}
     </div>`).join('');
-  const rows = DEMO.rows.map(r=>{
+  const rows = m.rows.map(r=>{
     const t=TYPES.find(t=>t.id===r.type);
+    const name = r.permalink ? `<a href="${r.permalink}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${escapeHtml(r.name)}</a>` : escapeHtml(r.name);
     return `<tr>
-      <td><div class="post-name"><span class="post-thumb">${icon('cal',16)}</span><div><div>${escapeHtml(r.name)}</div><span class="type-pill type-${r.type}" style="margin-top:4px"><span class="dot"></span>${t?.label||r.type}</span></div></div></td>
+      <td><div class="post-name"><span class="post-thumb">${icon('cal',16)}</span><div><div>${name}</div><span class="type-pill type-${r.type}" style="margin-top:4px"><span class="dot"></span>${t?.label||r.type}</span></div></div></td>
       <td class="num">${r.reach}</td><td class="num">${r.likes}</td><td class="num">${r.comments}</td><td class="num">${r.shares}</td><td class="num">${r.saves}</td>
     </tr>`;
   }).join('');
 
-  return `
-  <div class="demo-banner fade-up">${icon('info',18)} <span>Exibindo <b>dados de demonstração</b>. A conexão real com a Instagram Graph API será habilitada na próxima fase.</span></div>
+  const banner = m.isDemo
+    ? `<div class="demo-banner fade-up">${icon('info',18)} <span>Exibindo <b>dados de demonstração</b>. Conecte o Instagram no site publicado (Vercel) para ver os números reais.</span></div>`
+    : '';
+  const statusBadge = m.isDemo
+    ? `<span class="badge badge-scheduled" style="margin-left:6px">${icon('check',12)} Conectado · demo</span>`
+    : `<span class="badge badge-posted" style="margin-left:6px">${icon('check',12)} Conectado</span>`;
+  const avatarLetter = (m.handle||'N').replace('@','').charAt(0).toUpperCase() || 'N';
 
+  return `
+  ${banner}
   <div class="metrics-head fade-up d1">
     <div class="account-chip">
-      <div class="ava">N</div>
-      <div><div class="handle">${DEMO.handle}</div><div class="followers">${DEMO.followers} seguidores</div></div>
-      <span class="badge badge-scheduled" style="margin-left:6px">${icon('check',12)} Conectado · demo</span>
+      <div class="ava">${avatarLetter}</div>
+      <div><div class="handle">${escapeHtml(m.handle||'')}</div><div class="followers">${m.followers ? escapeHtml(m.followers)+' seguidores' : 'conta conectada'}</div></div>
+      ${statusBadge}
     </div>
     <button class="btn btn-outline" id="btn-disconnect">Desconectar</button>
   </div>
@@ -353,7 +452,7 @@ function dashboardMarkup(){
   <div class="kpi-grid">${kpis}</div>
 
   <div class="panel fade-up d2">
-    <div class="panel-head"><div><h3>Alcance por publicação</h3></div><span class="sub">Últimos 30 dias</span></div>
+    <div class="panel-head"><div><h3>Alcance por publicação</h3></div><span class="sub">Posts recentes</span></div>
     <div class="chart">${bars}</div>
   </div>
 
@@ -446,27 +545,50 @@ function bindEvents(){
 const AUTH_KEY = 'nevel_auth';
 const CRED = { user:'nevel2026', pass:'marketing' };
 
-function isAuthed(){ return localStorage.getItem(AUTH_KEY)==='1'; }
+function isAuthedLocal(){ return localStorage.getItem(AUTH_KEY)==='1'; }
 function showApp(){ document.getElementById('auth-screen').classList.add('hidden'); }
-function logout(){ localStorage.removeItem(AUTH_KEY); location.reload(); }
+function showLoginError(){
+  const err = document.getElementById('auth-error');
+  err.classList.add('show');
+  document.getElementById('auth-password').value='';
+  document.getElementById('auth-password').focus();
+}
+async function logout(){
+  if(ON_SERVER){ try{ await api('/api/logout',{method:'POST'}); }catch{} }
+  localStorage.removeItem(AUTH_KEY);
+  location.reload();
+}
 
-function initAuth(){
-  if(isAuthed()) showApp();
+async function initAuth(){
+  // tenta validar a sessão no backend; se indisponível, usa a trava local
+  let authed = false;
+  if(ON_SERVER){
+    try{ await api('/api/me'); authed = true; }
+    catch(e){ if(e.status===undefined) authed = isAuthedLocal(); /* backend ausente */ }
+  } else {
+    authed = isAuthedLocal();
+  }
+  if(authed) showApp();
 
-  document.getElementById('auth-form').addEventListener('submit',(e)=>{
+  document.getElementById('auth-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const u = document.getElementById('auth-user').value.trim();
     const p = document.getElementById('auth-password').value;
     const err = document.getElementById('auth-error');
-    if(u===CRED.user && p===CRED.pass){
-      localStorage.setItem(AUTH_KEY,'1');
-      err.classList.remove('show');
-      showApp();
-    } else {
-      err.classList.add('show');
-      document.getElementById('auth-password').value='';
-      document.getElementById('auth-password').focus();
+
+    if(ON_SERVER){
+      try{
+        await api('/api/login', { method:'POST', body:{ user:u, pass:p } });
+        localStorage.setItem(AUTH_KEY,'1'); // lembra também localmente
+        err.classList.remove('show'); showApp(); return;
+      }catch(e){
+        if(e.status===401){ showLoginError(); return; }
+        // backend ausente → cai para checagem local abaixo
+      }
     }
+    if(u===CRED.user && p===CRED.pass){
+      localStorage.setItem(AUTH_KEY,'1'); err.classList.remove('show'); showApp();
+    } else { showLoginError(); }
   });
 
   // mostrar/ocultar senha
@@ -483,3 +605,12 @@ seedIfEmpty();
 bindEvents();
 renderCalendar();
 initAuth();
+
+// Retorno do OAuth do Instagram → abre a aba Métricas
+if(location.search.includes('ig=connected') || location.hash === '#metrics'){
+  switchView('metrics');
+  if(location.search.includes('ig=connected')){
+    toast('Instagram conectado ✓');
+    history.replaceState(null, '', location.pathname);
+  }
+}
