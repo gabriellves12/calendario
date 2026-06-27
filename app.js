@@ -6,6 +6,7 @@
 const TYPES = [
   { id:'reels',     label:'Reels' },
   { id:'carrossel', label:'Carrossel' },
+  { id:'estatico',  label:'Post estático' },
   { id:'story',     label:'Story' },
   { id:'imagem',    label:'Imagem' },
   { id:'live',      label:'Live' },
