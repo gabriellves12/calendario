@@ -202,6 +202,10 @@ function setupRte(){
   editor.addEventListener('keyup', updateRteState);
   editor.addEventListener('mouseup', updateRteState);
   document.addEventListener('selectionchange', ()=>{ if(document.activeElement===editor) updateRteState(); });
+  // expandir ao focar / recolher ao sair (garantia via JS, além do CSS)
+  const wrap = editor.closest('.rte');
+  editor.addEventListener('focus', ()=> wrap && wrap.classList.add('is-open'));
+  editor.addEventListener('blur', ()=> wrap && wrap.classList.remove('is-open'));
 }
 function updateRteState(){
   document.querySelectorAll('.rte-toolbar .rte-btn').forEach(btn=>{

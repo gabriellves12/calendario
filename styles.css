@@ -278,7 +278,7 @@ a{color:inherit}
 .rte-btn b,.rte-btn i,.rte-btn u{font-size:14px}
 .rte-sep{width:1px;height:18px;background:var(--color-neutral-100);margin:0 4px}
 .rte-editor{min-height:100px;max-height:120px;overflow-y:auto;padding:11px 13px;font-size:var(--text-sm);color:var(--color-neutral-900);line-height:1.55;outline:none;transition:min-height var(--transition-base),max-height var(--transition-base)}
-.rte:focus-within .rte-editor{min-height:340px;max-height:56vh}
+.rte:focus-within .rte-editor,.rte.is-open .rte-editor{min-height:340px;max-height:56vh}
 .rte-editor:empty:before{content:attr(data-placeholder);color:var(--color-neutral-400)}
 .rte-editor ul,.rte-editor ol{margin:4px 0;padding-left:22px}
 .rte-editor:focus{outline:none}
