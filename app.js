@@ -153,10 +153,9 @@ function renderCalendar(){
     const dayPosts = postsFor(key).filter(matchesFilter);
     const evtHtml = dayPosts.slice(0,3).map(p=>{
       const t = TYPES.find(t=>t.id===p.type)?.label || p.type;
-      const title = p.content ? p.content.split('\n')[0] : t;
       const pr = profileById(p.profile);
       const profDot = `<span class="evt-prof" style="background:${pr?pr.color:'var(--color-neutral-400)'}"></span>`;
-      return `<div class="evt t-${p.type}">${profDot}<span class="evt-time">${p.time||'--:--'}</span><span class="evt-title">${escapeHtml(title)}</span></div>`;
+      return `<div class="evt t-${p.type}">${profDot}<span class="evt-time">${p.time||'--:--'}</span><span class="evt-tag type-${p.type}">${escapeHtml(t)}</span></div>`;
     }).join('');
     const more = dayPosts.length>3 ? `<div class="evt-more">+${dayPosts.length-3} mais</div>` : '';
     return `<div class="cal-cell ${c.outside?'outside':''} ${isToday(c.date)?'today':''} ${dayPosts.length?'has-events':''}" data-key="${key}" data-outside="${c.outside}">
@@ -167,6 +166,49 @@ function renderCalendar(){
   }).join('');
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ── Conteúdo (editor rich text) ── */
+// Converte o HTML do conteúdo em texto puro, preservando quebras de linha (para título do card)
+function contentToText(html){
+  const s = (html||'').replace(/<\/(div|p|li)>/gi,'\n').replace(/<(br|div|p|li)[^>]*>/gi,'\n').replace(/<[^>]+>/g,'');
+  const ta = document.createElement('textarea'); ta.innerHTML = s;
+  return ta.value.replace(/\n{2,}/g,'\n').trim();
+}
+function getContentHtml(){
+  const el = document.getElementById('f-content');
+  if(!el) return '';
+  if(!(el.textContent||'').trim()) return '';   // visualmente vazio
+  return el.innerHTML.trim();
+}
+function setContentHtml(v){
+  const el = document.getElementById('f-content');
+  if(!el) return;
+  v = v||'';
+  // posts antigos guardavam texto puro: converte quebras de linha em <br>
+  el.innerHTML = /<[a-z][\s\S]*>/i.test(v) ? v : escapeHtml(v).replace(/\n/g,'<br>');
+}
+function setupRte(){
+  const editor = document.getElementById('f-content');
+  const toolbar = document.querySelector('.rte-toolbar');
+  if(!editor || !toolbar) return;
+  toolbar.querySelectorAll('.rte-btn').forEach(btn=>{
+    btn.addEventListener('mousedown', e=>{
+      e.preventDefault();                 // mantém o foco/seleção dentro do editor
+      editor.focus();
+      document.execCommand(btn.dataset.cmd, false, null);
+      updateRteState();
+    });
+  });
+  editor.addEventListener('keyup', updateRteState);
+  editor.addEventListener('mouseup', updateRteState);
+  document.addEventListener('selectionchange', ()=>{ if(document.activeElement===editor) updateRteState(); });
+}
+function updateRteState(){
+  document.querySelectorAll('.rte-toolbar .rte-btn').forEach(btn=>{
+    let on=false; try{ on = document.queryCommandState(btn.dataset.cmd); }catch{}
+    btn.classList.toggle('active', on);
+  });
+}
 
 /* ═══════════════════════  DRAWER (detalhe do dia)  ═══════════════════════ */
 function openDay(key, focusForm=false){
@@ -196,7 +238,7 @@ function renderDayList(){
   }
   list.innerHTML = dayPosts.map(p=>{
     const t = TYPES.find(t=>t.id===p.type);
-    const title = p.content ? p.content.split('\n')[0] : (t?.label||p.type);
+    const title = p.content ? (contentToText(p.content).split('\n')[0]||(t?.label||p.type)) : (t?.label||p.type);
     const pr = profileById(p.profile);
     const profPill = pr ? `<span class="type-pill prof-tag"><span class="dot" style="background:${pr.color}"></span>${escapeHtml(pr.name)}</span>` : '';
     return `<div class="post-card ${editingId===p.id?'editing':''}" data-edit="${p.id}">
@@ -420,7 +462,7 @@ async function runAgent(query){
 function resetForm(){
   editingId=null; draftType='reels';
   draftProfile = profiles[0] ? profiles[0].id : null;
-  document.getElementById('f-content').value='';
+  setContentHtml('');
   document.getElementById('f-time').value='';
   document.getElementById('f-drive').value='';
   document.getElementById('f-caption').value='';
@@ -436,7 +478,7 @@ function loadIntoForm(id){
   if(!p) return;
   editingId=id; draftType=p.type;
   draftProfile = p.profile || (profiles[0]?profiles[0].id:null);
-  document.getElementById('f-content').value=p.content||'';
+  setContentHtml(p.content||'');
   document.getElementById('f-time').value=p.time||'';
   document.getElementById('f-drive').value=p.driveUrl||'';
   document.getElementById('f-caption').value=p.caption||'';
@@ -452,7 +494,7 @@ function collectForm(){
   return {
     type: draftType,
     profile: draftProfile,
-    content: document.getElementById('f-content').value.trim(),
+    content: getContentHtml(),
     time: normalizeTime(document.getElementById('f-time').value),
     driveUrl: document.getElementById('f-drive').value.trim(),
     caption: document.getElementById('f-caption').value.trim(),
@@ -608,6 +650,7 @@ function bindEvents(){
   document.getElementById('btn-new-post').addEventListener('click', resetForm);
   document.getElementById('f-caption').addEventListener('input', updateCharCount);
   document.getElementById('f-time').addEventListener('blur',(e)=>{ e.target.value = normalizeTime(e.target.value); });
+  setupRte();
 
   // drive preview abre link
   document.getElementById('f-drive').addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ e.preventDefault(); const u=e.target.value.trim(); if(u) window.open(u,'_blank'); } });

@@ -308,7 +308,23 @@
 
         <div class="field">
           <label for="f-content">Conteúdo <span class="hint" style="font-weight:400">— copy / roteiro</span></label>
-          <textarea id="f-content" placeholder="Roteiro do reels, estrutura do carrossel, ideia do post…"></textarea>
+          <div class="rte">
+            <div class="rte-toolbar" role="toolbar" aria-label="Ferramentas de formatação">
+              <button type="button" class="rte-btn" data-cmd="bold" title="Negrito"><b>B</b></button>
+              <button type="button" class="rte-btn" data-cmd="italic" title="Itálico"><i>I</i></button>
+              <button type="button" class="rte-btn" data-cmd="underline" title="Sublinhado"><u>U</u></button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="justifyLeft" title="Alinhar à esquerda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg></button>
+              <button type="button" class="rte-btn" data-cmd="justifyCenter" title="Centralizar"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M6 18h12"/></svg></button>
+              <button type="button" class="rte-btn" data-cmd="justifyRight" title="Alinhar à direita"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M10 12h10M7 18h13"/></svg></button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="insertUnorderedList" title="Lista com marcadores"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1" fill="currentColor" stroke="none"/></svg></button>
+              <button type="button" class="rte-btn" data-cmd="insertOrderedList" title="Lista numerada"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 6h10M10 12h10M10 18h10M4 5v3M4 5l-.8.5M3.4 18h1.2M4 15v0m-.6 1.5c0-.5.4-.9.9-.6.4.3.2.8-.3 1.1L3.4 18"/></svg></button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="removeFormat" title="Limpar formatação"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 5h12M9 5l-2 14M15 5l1 6M4 20h6M18 15l4 4m0-4l-4 4"/></svg></button>
+            </div>
+            <div id="f-content" class="rte-editor" contenteditable="true" data-placeholder="Roteiro do reels, estrutura do carrossel, ideia do post…"></div>
+          </div>
         </div>
 
         <div class="field">
