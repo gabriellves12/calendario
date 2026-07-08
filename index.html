@@ -293,6 +293,15 @@
           <div class="segmented" id="seg-type"></div>
         </div>
 
+        <div class="field">
+          <div class="field-head">
+            <label>Responsável</label>
+            <button type="button" class="btn-link" id="manage-owners">Gerenciar responsáveis</button>
+          </div>
+          <div class="segmented" id="seg-owner"></div>
+          <span class="hint">Quem aparece na gravação. Clique de novo para remover.</span>
+        </div>
+
         <div class="field-row">
           <div class="field">
             <label for="f-time">Horário da postagem</label>
@@ -372,6 +381,30 @@
   <div class="drawer-foot">
     <div></div>
     <div class="right"><button class="btn btn-primary" id="prof-done">Concluir</button></div>
+  </div>
+</aside>
+
+<!-- Gerenciador de responsáveis -->
+<div class="overlay" id="own-overlay"></div>
+<aside class="modal-sm" id="own-modal">
+  <div class="drawer-head">
+    <div>
+      <div class="eyebrow">Equipe</div>
+      <h2>Responsáveis</h2>
+    </div>
+    <button class="icon-btn" id="own-close" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="modal-sm-body">
+    <p class="hint" style="margin-bottom:4px">Quem pode aparecer nas gravações. Clique na bolinha de cor para trocá-la.</p>
+    <div class="prof-list" id="own-list"></div>
+    <button class="btn btn-outline" id="add-owner" style="width:100%;justify-content:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+      Adicionar responsável
+    </button>
+  </div>
+  <div class="drawer-foot">
+    <div></div>
+    <div class="right"><button class="btn btn-primary" id="own-done">Concluir</button></div>
   </div>
 </aside>
 

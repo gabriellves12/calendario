@@ -43,6 +43,7 @@ const I = {
   edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   bookOpen:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
 };
 function icon(name, w=18){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="${w}" height="${w}">${I[name]||''}</svg>`}
 
@@ -98,6 +99,24 @@ function saveProfiles(){ localStorage.setItem(PROF_KEY, JSON.stringify(profiles)
 function profileById(id){ return profiles.find(p=>p.id===id) || null; }
 function nextProfileColor(){ return PROFILE_PALETTE[profiles.length % PROFILE_PALETTE.length]; }
 function matchesFilter(p){ return activeProfileFilter==='all' || p.profile===activeProfileFilter; }
+
+/* ---------- Responsáveis (quem aparece na gravação) ---------- */
+const OWNER_KEY = 'nevel_owners_v1';
+const OWNER_PALETTE = ['#06C4FE','#8B5CF6','#10B981','#F59E0B','#2D5AD8','#EF4444'];
+let owners = loadOwners();
+let draftOwner = null;   // nenhum por padrão — o responsável é sempre uma escolha explícita
+
+function loadOwners(){
+  try{ const o = JSON.parse(localStorage.getItem(OWNER_KEY)); if(Array.isArray(o)) return o; }catch{}
+  return [
+    { id:'ow1', name:'Dara',     color:OWNER_PALETTE[0] },
+    { id:'ow2', name:'Riquelme', color:OWNER_PALETTE[1] },
+    { id:'ow3', name:'Gabriel',  color:OWNER_PALETTE[2] },
+  ];
+}
+function saveOwners(){ localStorage.setItem(OWNER_KEY, JSON.stringify(owners)); }
+function ownerById(id){ return owners.find(o=>o.id===id) || null; }
+function nextOwnerColor(){ return OWNER_PALETTE[owners.length % OWNER_PALETTE.length]; }
 
 /* ---------- Referências (links e materiais) ---------- */
 const REF_KEY = 'nevel_refs_v1';
@@ -155,7 +174,9 @@ function renderCalendar(){
       const t = TYPES.find(t=>t.id===p.type)?.label || p.type;
       const pr = profileById(p.profile);
       const profDot = `<span class="evt-prof" style="background:${pr?pr.color:'var(--color-neutral-400)'}"></span>`;
-      return `<div class="evt t-${p.type}">${profDot}<span class="evt-time">${p.time||'--:--'}</span><span class="evt-tag type-${p.type}">${escapeHtml(t)}</span></div>`;
+      const ow = ownerById(p.owner);
+      const ownerTag = ow ? `<span class="evt-owner"><span class="dot" style="background:${ow.color}"></span><span>${escapeHtml(ow.name)}</span></span>` : '';
+      return `<div class="evt t-${p.type}">${profDot}<span class="evt-time">${p.time||'--:--'}</span><span class="evt-tag type-${p.type}">${escapeHtml(t)}</span>${ownerTag}</div>`;
     }).join('');
     const more = dayPosts.length>3 ? `<div class="evt-more">+${dayPosts.length-3} mais</div>` : '';
     return `<div class="cal-cell ${c.outside?'outside':''} ${isToday(c.date)?'today':''} ${dayPosts.length?'has-events':''}" data-key="${key}" data-outside="${c.outside}">
@@ -245,6 +266,8 @@ function renderDayList(){
     const title = p.content ? (contentToText(p.content).split('\n')[0]||(t?.label||p.type)) : (t?.label||p.type);
     const pr = profileById(p.profile);
     const profPill = pr ? `<span class="type-pill prof-tag"><span class="dot" style="background:${pr.color}"></span>${escapeHtml(pr.name)}</span>` : '';
+    const ow = ownerById(p.owner);
+    const ownerPill = ow ? `<span class="type-pill owner-tag">${icon('user',12)}<span class="dot" style="background:${ow.color}"></span>${escapeHtml(ow.name)}</span>` : '';
     return `<div class="post-card ${editingId===p.id?'editing':''}" data-edit="${p.id}">
       <div class="post-card-top">
         <span class="post-card-time">${icon('clock',14)} ${p.time||'--:--'}</span>
@@ -253,6 +276,7 @@ function renderDayList(){
       <div class="post-card-meta">
         ${profPill}
         <span class="type-pill type-${p.type}"><span class="dot"></span>${t?.label||p.type}</span>
+        ${ownerPill}
         ${p.driveUrl?`<span class="type-pill type-imagem"><span class="dot"></span>Drive</span>`:''}
       </div>
     </div>`;
@@ -265,6 +289,18 @@ function renderSegmented(){
       <span class="dot" style="background:var(--type-${t.id})"></span>${t.label}</button>`
   ).join('');
   renderProfileSeg();
+  renderOwnerSeg();
+}
+
+/* Seletor de responsável no formulário (clicar no ativo remove a escolha) */
+function renderOwnerSeg(){
+  const el = document.getElementById('seg-owner');
+  if(!el) return;
+  if(!owners.length){ el.innerHTML = `<span class="hint">Ninguém cadastrado — clique em "Gerenciar".</span>`; return; }
+  el.innerHTML = owners.map(o=>
+    `<button type="button" class="seg ${draftOwner===o.id?'active':''}" data-owner="${o.id}">
+      <span class="dot" style="background:${o.color}"></span>${escapeHtml(o.name)}</button>`
+  ).join('');
 }
 
 /* Seletor de perfil no formulário */
@@ -329,6 +365,51 @@ function deleteProfile(id){
   if(activeProfileFilter===id) activeProfileFilter='all';
   if(draftProfile===id) draftProfile = profiles[0]?profiles[0].id:null;
   saveProfiles(); renderProfManager(); afterProfilesChanged();
+}
+
+/* Gerenciador de responsáveis (modal) */
+function openOwnManager(){
+  renderOwnManager();
+  document.getElementById('own-overlay').classList.add('open');
+  document.getElementById('own-modal').classList.add('open');
+}
+function closeOwnManager(){
+  document.getElementById('own-overlay').classList.remove('open');
+  document.getElementById('own-modal').classList.remove('open');
+}
+function renderOwnManager(){
+  const list = document.getElementById('own-list');
+  list.innerHTML = owners.map(o=>
+    `<div class="prof-row" data-id="${o.id}">
+      <button class="prof-color" data-color="${o.id}" style="background:${o.color}" title="Trocar cor"></button>
+      <input class="prof-name-input" data-name="${o.id}" value="${escapeHtml(o.name)}" placeholder="Nome" maxlength="30">
+      <button class="btn-icon-del" data-del="${o.id}" title="Remover responsável">${icon('trash',16)}</button>
+    </div>`
+  ).join('') || `<div class="day-list-empty">Ninguém cadastrado ainda. Adicione o primeiro.</div>`;
+}
+function afterOwnersChanged(){
+  renderCalendar(); renderOwnerSeg();
+  if(activeDayKey) renderDayList();
+}
+function addOwner(){
+  owners.push({ id:'ow'+uid(), name:'Novo responsável', color:nextOwnerColor() });
+  saveOwners(); renderOwnManager(); afterOwnersChanged();
+}
+function cycleOwnerColor(id){
+  const o = ownerById(id); if(!o) return;
+  const i = OWNER_PALETTE.indexOf(o.color);
+  o.color = OWNER_PALETTE[(i+1)%OWNER_PALETTE.length];
+  saveOwners(); renderOwnManager(); afterOwnersChanged();
+}
+function renameOwner(id, name){
+  const o = ownerById(id); if(!o) return;
+  o.name = name.trim() || o.name;
+  saveOwners(); afterOwnersChanged();
+}
+function deleteOwner(id){
+  owners = owners.filter(o=>o.id!==id);
+  if(draftOwner===id) draftOwner = null;
+  saveOwners(); renderOwnManager(); afterOwnersChanged();
 }
 
 /* ═══════════════════════  REFERÊNCIAS  ═══════════════════════ */
@@ -466,6 +547,7 @@ async function runAgent(query){
 function resetForm(){
   editingId=null; draftType='reels';
   draftProfile = profiles[0] ? profiles[0].id : null;
+  draftOwner = null;
   setContentHtml('');
   document.getElementById('f-time').value='';
   document.getElementById('f-drive').value='';
@@ -482,6 +564,7 @@ function loadIntoForm(id){
   if(!p) return;
   editingId=id; draftType=p.type;
   draftProfile = p.profile || (profiles[0]?profiles[0].id:null);
+  draftOwner = ownerById(p.owner) ? p.owner : null;
   setContentHtml(p.content||'');
   document.getElementById('f-time').value=p.time||'';
   document.getElementById('f-drive').value=p.driveUrl||'';
@@ -498,6 +581,7 @@ function collectForm(){
   return {
     type: draftType,
     profile: draftProfile,
+    owner: draftOwner,
     content: getContentHtml(),
     time: normalizeTime(document.getElementById('f-time').value),
     driveUrl: document.getElementById('f-drive').value.trim(),
@@ -558,11 +642,11 @@ function seedIfEmpty(){
   const mk=(day)=>keyOf(new Date(y,m,day));
   const base=Math.min(t.getDate(), 24);
   posts[mk(base)] = [
-    {id:uid(),type:'reels',profile:'pf1',time:'09:00',content:'5 sinais de burnout médico',caption:'Você reconhece esses sinais? Salve este post. 🩺\n\n#saude #medicina',driveUrl:'https://drive.google.com/exemplo'},
-    {id:uid(),type:'story',profile:'pf2',time:'12:30',content:'Enquete: maior dúvida na consulta',caption:'',driveUrl:''},
+    {id:uid(),type:'reels',profile:'pf1',owner:'ow1',time:'09:00',content:'5 sinais de burnout médico',caption:'Você reconhece esses sinais? Salve este post. 🩺\n\n#saude #medicina',driveUrl:'https://drive.google.com/exemplo'},
+    {id:uid(),type:'story',profile:'pf2',owner:'ow2',time:'12:30',content:'Enquete: maior dúvida na consulta',caption:'',driveUrl:''},
   ];
   posts[mk(Math.min(base+2,28))] = [
-    {id:uid(),type:'carrossel',profile:'pf1',time:'18:00',content:'Como estruturar um plano de saúde',caption:'Arraste para o lado →',driveUrl:''},
+    {id:uid(),type:'carrossel',profile:'pf1',owner:'ow3',time:'18:00',content:'Como estruturar um plano de saúde',caption:'Arraste para o lado →',driveUrl:''},
   ];
   save();
 }
@@ -607,6 +691,27 @@ function bindEvents(){
   document.getElementById('seg-profile').addEventListener('click',(e)=>{
     const b=e.target.closest('[data-prof]'); if(!b) return;
     draftProfile=b.dataset.prof; renderProfileSeg();
+  });
+
+  // segmented responsável (clicar no ativo desmarca — conteúdo pode ficar sem responsável)
+  document.getElementById('seg-owner').addEventListener('click',(e)=>{
+    const b=e.target.closest('[data-owner]'); if(!b) return;
+    draftOwner = draftOwner===b.dataset.owner ? null : b.dataset.owner;
+    renderOwnerSeg();
+  });
+
+  // gerenciador de responsáveis
+  document.getElementById('manage-owners').addEventListener('click', openOwnManager);
+  document.getElementById('own-overlay').addEventListener('click', closeOwnManager);
+  document.getElementById('own-close').addEventListener('click', closeOwnManager);
+  document.getElementById('own-done').addEventListener('click', closeOwnManager);
+  document.getElementById('add-owner').addEventListener('click', addOwner);
+  document.getElementById('own-list').addEventListener('click',(e)=>{
+    const col=e.target.closest('[data-color]'); if(col){ cycleOwnerColor(col.dataset.color); return; }
+    const del=e.target.closest('[data-del]'); if(del){ deleteOwner(del.dataset.del); return; }
+  });
+  document.getElementById('own-list').addEventListener('input',(e)=>{
+    const inp=e.target.closest('[data-name]'); if(inp) renameOwner(inp.dataset.name, inp.value);
   });
 
   // filtro de perfil (topo do calendário)
